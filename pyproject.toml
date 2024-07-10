@@ -1,0 +1,20 @@
+[tool.poetry]
+name = "gammapy_SyLC"
+version = "0.1.0"
+description =  "A tool for synthetic lightcurves for Gammapy"
+authors = ["Claudio Galelli <claudio.galelli@obspm.fr>"]
+license = "BSD 3-Clause"
+repository = "https://github.com/cgalelli/gammapy_SyLC.git"
+readme = "README.md"
+classifiers = ["Topic :: Scientific/Engineering"]
+
+[tool.poetry.dependencies]
+python = ">3.10"
+numpy = "*"
+gammapy = ">1.2"
+scipy = "*"
+
+[build-system]
+requires = ["poetry-core"]
+
+build-backend = "poetry.core.masonry.api"
