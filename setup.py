@@ -12,6 +12,6 @@ setup(
     repository="https://github.com/cgalelli/gammapy_SyLC.git",
     readme="README.md",
     classifiers=["Topic :: Scientific/Engineering"],
-    install_requires=["numpy", "gammapy>=1.2", "scipy",],
+    install_requires=["numpy", "gammapy", "scipy",],
     python_requires=">3.10",
 )
