@@ -4,7 +4,7 @@ setup(
     name="gammapy_SyLC",
     version="0.1.0",
     description="A tool for synthetic lightcurves for Gammapy",
-    package_dir={"": "gammapy_SyLC"},
+    package_dir={"": "."},
     packages=find_packages(where="gammapy_SyLC"),
     author="Claudio Galelli",
     author_email="<claudio.galelli@obspm.fr>",
