@@ -4,6 +4,7 @@ import inspect
 from gammapy.utils.random import get_random_state
 from scipy.stats import gamma, lognorm
 from scipy.signal import periodogram
+from scipy.optimize import minimize
 
 
 def emm_gammalognorm(x, wgamma, a, s, loc, scale):
@@ -192,6 +193,7 @@ def lightcurve_psd_envelope(
 ):
     npoints_ext = npoints * oversample
     spacing_ext = spacing / oversample
+    tseries, taxis = np.empty(npoints_ext), np.empty(npoints_ext)
     if simulator == "TK":
         tseries, taxis = TimmerKonig_lightcurve_simulator(
             psd,
@@ -295,3 +297,38 @@ def x2_fit(
     sign = len(np.where(sumobs >= sumsim)[0]) / nsims
 
     return sign
+
+
+def minimize_x2_fit(
+    pgram,
+    psd,
+    psd_initial,
+    spacing,
+    pdf=None,
+    pdf_params=None,
+    simulator="TK",
+    nsims=10000,
+    mean=None,
+    std=None,
+    poisson=False,
+    **kwargs
+):
+    results = minimize(
+        x2_fit,
+        list(psd_initial.values()),
+        args=(
+            pgram[1:],
+            len(pgram[1:]) * 2,
+            spacing,
+            psd,
+            pdf,
+            pdf_params,
+            simulator,
+            nsims,
+            mean,
+            std,
+            poisson,
+        ),
+        **kwargs
+    )
+    return results
