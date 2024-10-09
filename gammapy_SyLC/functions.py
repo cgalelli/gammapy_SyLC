@@ -6,7 +6,6 @@ from scipy.stats import gamma, lognorm
 from scipy.signal import periodogram
 from scipy.optimize import minimize
 
-
 def emm_gammalognorm(x, wgamma, a, s, loc, scale):
     return wgamma * gamma.pdf(x, a) + (1 - wgamma) * lognorm.pdf(x, s, loc, scale)
 
@@ -311,8 +310,11 @@ def minimize_x2_fit(
     mean=None,
     std=None,
     poisson=False,
+    nexp = 100,
+    full_output=False,
     **kwargs
 ):
+    print(nexp)
     results = minimize(
         x2_fit,
         list(psd_initial.values()),
@@ -331,4 +333,25 @@ def minimize_x2_fit(
         ),
         **kwargs
     )
-    return results
+    psd_params_keys = list(inspect.signature(psd).parameters.keys())
+    psd_params = dict(zip(psd_params_keys[1:], results.x))
+
+    if nexp>0.:
+        results_list=np.empty((nexp,) + results.x.shape)
+        for _ in range(nexp):
+            print(_, nexp)
+            results = minimize_x2_fit(pgram, pl, psd_params, spacing, pdf=pdf, pdf_params=pdf_params,
+                                      simulator=simulator, nsims=100, mean=mean, std=std, nexp=-1, full_output=True, **kwargs)
+            results_list[_] = results.x
+        error = results_list.std(axis=0)
+
+        if full_output:
+            return results, error
+        else:
+            return results.x, error
+
+    else:
+        if full_output:
+            return results
+        else:
+            return results.x
