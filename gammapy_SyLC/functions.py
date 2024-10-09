@@ -296,7 +296,7 @@ def x2_fit(
     sumsim = np.sum(sim, axis=-1)
     sign = len(np.where(sumobs >= sumsim)[0]) / nsims
 
-    return sign
+    return sumobs*sign/len(obs)
 
 
 def minimize_x2_fit(
