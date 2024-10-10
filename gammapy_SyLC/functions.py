@@ -311,11 +311,10 @@ def minimize_x2_fit(
     mean=None,
     std=None,
     poisson=False,
-    nexp=100,
+    nexp=50,
     full_output=False,
     **kwargs
 ):
-    print(nexp)
     results = minimize(
         x2_fit,
         list(psd_initial.values()),
@@ -339,11 +338,14 @@ def minimize_x2_fit(
 
     if nexp > 0.0:
         results_list = np.empty((nexp,) + results.x.shape)
+        frequencies = np.fft.fftfreq(len(pgram), spacing.value)
+        real_frequencies = np.sort(np.abs(frequencies[frequencies < 0]))
+        test_pgram = psd(real_frequencies, **psd_params)
+
         for _ in range(nexp):
-            print(_, nexp)
             results = minimize_x2_fit(
-                pgram,
-                pl,
+                test_pgram,
+                psd,
                 psd_params,
                 spacing,
                 pdf=pdf,
