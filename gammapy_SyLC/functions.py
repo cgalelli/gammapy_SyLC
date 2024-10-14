@@ -315,6 +315,9 @@ def minimize_x2_fit(
     full_output=False,
     **kwargs
 ):
+
+    if not isinstance(nexp, int):
+        raise TypeError("The number of MC simulations for the erro evaluation nexp must be an integer!")
     kwargs.setdefault("method", "Powell")
     results = minimize(
         x2_fit,
@@ -337,14 +340,14 @@ def minimize_x2_fit(
     psd_params_keys = list(inspect.signature(psd).parameters.keys())
     psd_params = dict(zip(psd_params_keys[1:], results.x))
 
-    if nexp > 0.0:
+    if nexp > 0:
         results_list = np.empty((nexp,) + results.x.shape)
         frequencies = np.fft.fftfreq(len(pgram), spacing.value)
         real_frequencies = np.sort(np.abs(frequencies[frequencies < 0]))
         test_pgram = psd(real_frequencies, **psd_params)
 
         for _ in range(nexp):
-            results = minimize_x2_fit(
+            results_err = minimize_x2_fit(
                 test_pgram,
                 psd,
                 psd_params,
@@ -358,7 +361,7 @@ def minimize_x2_fit(
                 nexp=-1,
                 **kwargs
             )
-            results_list[_] = results
+            results_list[_] = results_err
         error = results_list.std(axis=0)
 
         if full_output:
