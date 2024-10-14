@@ -315,6 +315,7 @@ def minimize_x2_fit(
     full_output=False,
     **kwargs
 ):
+    kwargs.setdefault("method", "Powell")
     results = minimize(
         x2_fit,
         list(psd_initial.values()),
@@ -355,10 +356,9 @@ def minimize_x2_fit(
                 mean=mean,
                 std=std,
                 nexp=-1,
-                full_output=True,
                 **kwargs
             )
-            results_list[_] = results.x
+            results_list[_] = results
         error = results_list.std(axis=0)
 
         if full_output:
