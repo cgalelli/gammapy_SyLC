@@ -4,11 +4,9 @@ An add-on toolbox for [gammapy](https://github.com/gammapy) to add functionaliti
 
 ## Usage
 
-In your gammapy-dev environment you can install gammapy_SyLC by running:
+In your gammapy environment you can install gammapy_SyLC by running:
 ~~~
 git clone https://github.com/cgalelli/gammapy_SyLC.git
 cd gammapy_SyLC
 python -m pip install -e .
 ~~~
-
-You will need a gammapy-dev version for the functions to work. From gammapy-1.3 onwards, normal versions will work as well.
