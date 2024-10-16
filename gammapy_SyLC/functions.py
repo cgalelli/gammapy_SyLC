@@ -1,5 +1,4 @@
 import numpy as np
-import astropy.units as u
 import inspect
 from gammapy.utils.random import get_random_state
 from scipy.stats import gamma, lognorm
@@ -252,7 +251,7 @@ def lightcurve_psd_envelope(
     return envelopes_psd, freqs[1 : npoints // 2 + 1]
 
 
-def x2_fit(
+def _x2_fit_helper(
     psd_params_list,
     pgram,
     npoints,
@@ -303,7 +302,7 @@ def x2_fit(
     return sumobs * sign / len(obs)
 
 
-def minimize_x2_fit(
+def psd_fit(
     pgram,
     psd,
     psd_initial,
@@ -325,7 +324,7 @@ def minimize_x2_fit(
         raise TypeError("The number of MC simulations for the erro evaluation nexp must be an integer!")
     kwargs.setdefault("method", "Powell")
     results = minimize(
-        x2_fit,
+        _x2_fit_helper,
         list(psd_initial.values()),
         args=(
             pgram[1:],
@@ -353,7 +352,7 @@ def minimize_x2_fit(
         test_pgram = psd(real_frequencies, **psd_params)
 
         for _ in range(nexp):
-            results_err = minimize_x2_fit(
+            results_err = psd_fit(
                 test_pgram,
                 psd,
                 psd_params,
