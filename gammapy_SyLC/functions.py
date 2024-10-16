@@ -28,7 +28,8 @@ def TimmerKonig_lightcurve_simulator(
     power_spectrum_params=None,
     mean=0.0,
     std=1.0,
-    poisson=False,
+    noise=None,
+    noise_type="gauss"
 ):
 
     if not callable(power_spectrum):
@@ -38,16 +39,6 @@ def TimmerKonig_lightcurve_simulator(
 
     if not isinstance(npoints * nchunks, int):
         raise TypeError("npoints and nchunks must be integers")
-
-    if poisson:
-        if isinstance(mean, u.Quantity):
-            wmean = mean.value * spacing.value
-        else:
-            wmean = mean * spacing.value
-        if wmean < 1.0:
-            raise Warning(
-                "Poisson noise was requested but the target mean is too low - resulting counts will likely be 0."
-            )
 
     random_state = get_random_state(random_state)
 
@@ -66,7 +57,6 @@ def TimmerKonig_lightcurve_simulator(
     real_part = random_state.normal(0, 1, len(periodogram) - 1)
     imaginary_part = random_state.normal(0, 1, len(periodogram) - 1)
 
-    # Nyquist frequency component handling
     if npoints_ext % 2 == 0:
         idx0 = -2
         random_factor = random_state.normal(0, 1)
@@ -95,15 +85,17 @@ def TimmerKonig_lightcurve_simulator(
     time_series = time_series[setstart:setend]
 
     time_series = (time_series - time_series.mean()) / time_series.std()
-    time_series = time_series * std + mean
 
-    if poisson:
-        time_series = (
-            random_state.poisson(
-                np.where(time_series >= 0, time_series, 0) * spacing.value
-            )
-            / spacing.value
-        )
+    if noise:
+        if noise_type=="gauss":
+            noise_series = np.random.normal(loc=0, scale=noise, size=npoints)
+        elif noise_type=="counts":
+            noise_series = np.random.poisson(lam=noise, size=npoints)
+        else:
+            raise ValueError("Accepted values for 'noise_type' are 'gauss' or 'counts'")
+        time_series += noise_series
+
+    time_series = time_series * std + mean
 
     time_axis = np.linspace(0, npoints * spacing.value, npoints) * spacing.unit
 
@@ -122,9 +114,9 @@ def Emmanoulopoulos_lightcurve_simulator(
     nchunks=10,
     mean=0.0,
     std=1.0,
-    poisson=False,
+    noise=None,
+    noise_type="gauss"
 ):
-    target_cps = 0.2
     lc_norm, taxis = TimmerKonig_lightcurve_simulator(
         psd,
         npoints,
@@ -167,12 +159,17 @@ def Emmanoulopoulos_lightcurve_simulator(
         lc_sim = lc_adj
 
     lc_sim = (lc_sim - lc_sim.mean()) / lc_sim.std()
-    lc_sim = lc_sim * std + mean
 
-    if poisson:
-        lc_sim = random_state.poisson(
-            np.where(lc_sim >= 0, lc_sim, 0) * spacing.decompose().value * target_cps
-        ) / (spacing.decompose().value * target_cps)
+    if noise:
+        if noise_type=="gauss":
+            noise_series = np.random.normal(loc=0, scale=noise, size=npoints)
+        elif noise_type=="poisson":
+            noise_series = np.random.poisson(lam=noise, size=npoints)
+        else:
+            raise ValueError("Accepted values for 'noise_type' are 'gauss' or 'poisson'")
+        lc_sim += noise_series
+
+    lc_sim = lc_sim * std + mean
 
     return lc_sim, taxis
 
@@ -189,7 +186,8 @@ def lightcurve_psd_envelope(
     mean=0.0,
     std=1.0,
     oversample=10,
-    poisson=False,
+    noise=None,
+    noise_type="gauss"
 ):
     npoints_ext = npoints * oversample
     spacing_ext = spacing / oversample
@@ -202,7 +200,8 @@ def lightcurve_psd_envelope(
             power_spectrum_params=psd_params,
             mean=mean,
             std=std,
-            poisson=poisson,
+            noise=noise,
+            noise_type=noise_type
         )
     elif simulator == "EMM":
         tseries, taxis = Emmanoulopoulos_lightcurve_simulator(
@@ -214,7 +213,8 @@ def lightcurve_psd_envelope(
             psd_params=psd_params,
             mean=mean,
             std=std,
-            poisson=poisson,
+            noise=noise,
+            noise_type=noise_type
         )
     freqs, pg = periodogram(tseries, 1 / spacing_ext.value)
     envelopes_psd = np.empty((nsims, npoints // 2))
@@ -229,7 +229,8 @@ def lightcurve_psd_envelope(
                 power_spectrum_params=psd_params,
                 mean=mean,
                 std=std,
-                poisson=poisson,
+                noise=noise,
+                noise_type=noise_type
             )
         else:
             tseries, taxis = Emmanoulopoulos_lightcurve_simulator(
@@ -241,7 +242,8 @@ def lightcurve_psd_envelope(
                 psd_params=psd_params,
                 mean=mean,
                 std=std,
-                poisson=poisson,
+                noise=noise,
+                noise_type=noise_type
             )
 
         freqs, pg = periodogram(tseries, 1 / spacing_ext.value)
@@ -262,7 +264,8 @@ def x2_fit(
     nsims=10000,
     mean=None,
     std=None,
-    poisson=False,
+    noise=None,
+    noise_type="gauss"
 ):
     psd_params_keys = list(inspect.signature(psd).parameters.keys())
 
@@ -284,7 +287,8 @@ def x2_fit(
         nsims=nsims,
         mean=mean,
         std=std,
-        poisson=poisson,
+        noise=noise,
+        noise_type=noise_type
     )
 
     if len(envelopes[0]) != len(pgram):
@@ -310,7 +314,8 @@ def minimize_x2_fit(
     nsims=10000,
     mean=None,
     std=None,
-    poisson=False,
+    noise=None,
+    noise_type="gauss",
     nexp=50,
     full_output=False,
     **kwargs
@@ -333,7 +338,8 @@ def minimize_x2_fit(
             nsims,
             mean,
             std,
-            poisson,
+            noise,
+            noise_type
         ),
         **kwargs
     )
