@@ -266,18 +266,15 @@ def lightcurve_hist_envelope(
         std=1.0,
         noise=None,
         noise_type="gauss",
-        oversample=10,
         bins=None
 ):
     if bins is None:
         bins = int(10 ** np.floor(np.log10(npoints)))
-    npoints_ext = npoints * oversample
-    spacing_ext = spacing / oversample
     tseries, taxis = Emmanoulopoulos_lightcurve_simulator(
         pdf,
         psd,
-        npoints_ext,
-        spacing_ext,
+        npoints,
+        spacing,
         pdf_params=pdf_params,
         psd_params=psd_params,
         mean=mean,
@@ -288,13 +285,13 @@ def lightcurve_hist_envelope(
 
     hist, bins = np.histogram(tseries, bins=bins)
     envelopes_hist = np.empty((nsims, len(hist)))
-    envelopes_hist[0] = hist / oversample
+    envelopes_hist[0] = hist
     for _ in range(1, nsims):
         tseries, taxis = Emmanoulopoulos_lightcurve_simulator(
             pdf,
             psd,
-            npoints_ext,
-            spacing_ext,
+            npoints,
+            spacing,
             pdf_params=pdf_params,
             psd_params=psd_params,
             mean=mean,
@@ -303,7 +300,7 @@ def lightcurve_hist_envelope(
             noise_type=noise_type
         )
         hist, bins = np.histogram(tseries, bins=bins)
-        envelopes_hist[_] = hist / oversample
+        envelopes_hist[_] = hist
 
     return envelopes_hist, bins
 
