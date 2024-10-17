@@ -6,6 +6,10 @@ from scipy.signal import periodogram
 from scipy.optimize import minimize
 
 
+def lognormal(x, s, loc, scale):
+    return lognorm.pdf(x, s, loc, scale)
+
+
 def emm_gammalognorm(x, wgamma, a, s, loc, scale):
     return wgamma * gamma.pdf(x, a) + (1 - wgamma) * lognorm.pdf(x, s, loc, scale)
 
@@ -15,22 +19,21 @@ def bpl(x, norm, aup, adn, x0):
 
 
 def pl(x, index):
-    return x**index
+    return x ** index
 
 
 def TimmerKonig_lightcurve_simulator(
-    power_spectrum,
-    npoints,
-    spacing,
-    nchunks=10,
-    random_state="random-seed",
-    power_spectrum_params=None,
-    mean=0.0,
-    std=1.0,
-    noise=None,
-    noise_type="gauss"
+        power_spectrum,
+        npoints,
+        spacing,
+        nchunks=10,
+        random_state="random-seed",
+        power_spectrum_params=None,
+        mean=0.0,
+        std=1.0,
+        noise=None,
+        noise_type="gauss"
 ):
-
     if not callable(power_spectrum):
         raise ValueError(
             "The power spectrum has to be provided as a callable function."
@@ -86,9 +89,9 @@ def TimmerKonig_lightcurve_simulator(
     time_series = (time_series - time_series.mean()) / time_series.std()
 
     if noise:
-        if noise_type=="gauss":
+        if noise_type == "gauss":
             noise_series = np.random.normal(loc=0, scale=noise, size=npoints)
-        elif noise_type=="counts":
+        elif noise_type == "counts":
             noise_series = np.random.poisson(lam=noise, size=npoints)
         else:
             raise ValueError("Accepted values for 'noise_type' are 'gauss' or 'counts'")
@@ -102,19 +105,19 @@ def TimmerKonig_lightcurve_simulator(
 
 
 def Emmanoulopoulos_lightcurve_simulator(
-    pdf,
-    psd,
-    npoints,
-    spacing,
-    pdf_params=None,
-    psd_params=None,
-    random_state="random-seed",
-    imax=1000,
-    nchunks=10,
-    mean=0.0,
-    std=1.0,
-    noise=None,
-    noise_type="gauss"
+        pdf,
+        psd,
+        npoints,
+        spacing,
+        pdf_params=None,
+        psd_params=None,
+        random_state="random-seed",
+        imax=1000,
+        nchunks=10,
+        mean=0.0,
+        std=1.0,
+        noise=None,
+        noise_type="gauss"
 ):
     lc_norm, taxis = TimmerKonig_lightcurve_simulator(
         psd,
@@ -160,9 +163,9 @@ def Emmanoulopoulos_lightcurve_simulator(
     lc_sim = (lc_sim - lc_sim.mean()) / lc_sim.std()
 
     if noise:
-        if noise_type=="gauss":
+        if noise_type == "gauss":
             noise_series = np.random.normal(loc=0, scale=noise, size=npoints)
-        elif noise_type=="poisson":
+        elif noise_type == "poisson":
             noise_series = np.random.poisson(lam=noise, size=npoints)
         else:
             raise ValueError("Accepted values for 'noise_type' are 'gauss' or 'poisson'")
@@ -174,19 +177,19 @@ def Emmanoulopoulos_lightcurve_simulator(
 
 
 def lightcurve_psd_envelope(
-    psd,
-    npoints,
-    spacing,
-    pdf=None,
-    nsims=10000,
-    pdf_params=None,
-    psd_params=None,
-    simulator="TK",
-    mean=0.0,
-    std=1.0,
-    oversample=10,
-    noise=None,
-    noise_type="gauss"
+        psd,
+        npoints,
+        spacing,
+        pdf=None,
+        nsims=10000,
+        pdf_params=None,
+        psd_params=None,
+        simulator="TK",
+        mean=0.0,
+        std=1.0,
+        oversample=10,
+        noise=None,
+        noise_type="gauss"
 ):
     npoints_ext = npoints * oversample
     spacing_ext = spacing / oversample
@@ -217,7 +220,7 @@ def lightcurve_psd_envelope(
         )
     freqs, pg = periodogram(tseries, 1 / spacing_ext.value)
     envelopes_psd = np.empty((nsims, npoints // 2))
-    envelopes_psd[0] = pg[1 : npoints // 2 + 1]
+    envelopes_psd[0] = pg[1: npoints // 2 + 1]
 
     for _ in range(1, nsims):
         if simulator == "TK":
@@ -246,25 +249,25 @@ def lightcurve_psd_envelope(
             )
 
         freqs, pg = periodogram(tseries, 1 / spacing_ext.value)
-        envelopes_psd[_] = pg[1 : npoints // 2 + 1]
+        envelopes_psd[_] = pg[1: npoints // 2 + 1]
 
-    return envelopes_psd, freqs[1 : npoints // 2 + 1]
+    return envelopes_psd, freqs[1: npoints // 2 + 1]
 
 
 def _x2_fit_helper(
-    psd_params_list,
-    pgram,
-    npoints,
-    spacing,
-    psd,
-    pdf=None,
-    pdf_params=None,
-    simulator="TK",
-    nsims=10000,
-    mean=None,
-    std=None,
-    noise=None,
-    noise_type="gauss"
+        psd_params_list,
+        pgram,
+        npoints,
+        spacing,
+        psd,
+        pdf=None,
+        pdf_params=None,
+        simulator="TK",
+        nsims=10000,
+        mean=None,
+        std=None,
+        noise=None,
+        noise_type="gauss"
 ):
     psd_params_keys = list(inspect.signature(psd).parameters.keys())
 
@@ -303,25 +306,24 @@ def _x2_fit_helper(
 
 
 def psd_fit(
-    pgram,
-    psd,
-    psd_initial,
-    spacing,
-    pdf=None,
-    pdf_params=None,
-    simulator="TK",
-    nsims=10000,
-    mean=None,
-    std=None,
-    noise=None,
-    noise_type="gauss",
-    nexp=50,
-    full_output=False,
-    **kwargs
+        pgram,
+        psd,
+        psd_initial,
+        spacing,
+        pdf=None,
+        pdf_params=None,
+        simulator="TK",
+        nsims=10000,
+        mean=None,
+        std=None,
+        noise=None,
+        noise_type="gauss",
+        nexp=50,
+        full_output=False,
+        **kwargs
 ):
-
     if not isinstance(nexp, int):
-        raise TypeError("The number of MC simulations for the erro evaluation nexp must be an integer!")
+        raise TypeError("The number of MC simulations for the error evaluation nexp must be an integer!")
     kwargs.setdefault("method", "Powell")
     results = minimize(
         _x2_fit_helper,
