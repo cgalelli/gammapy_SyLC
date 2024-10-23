@@ -6,8 +6,8 @@ from scipy.signal import periodogram
 from scipy.optimize import minimize
 
 
-def lognormal(x, s, loc, scale):
-    return lognorm.pdf(x, s, loc, scale)
+def lognormal(x, s):
+    return lognorm.pdf(x, s, loc=0, scale=1)
 
 
 def emm_gammalognorm(x, wgamma, a, s, loc, scale):
@@ -139,13 +139,12 @@ def Emmanoulopoulos_lightcurve_simulator(
     else:
         scale = 1
 
-    xx = np.linspace(0, scale * 10, 1000)
+    xx = np.linspace(0, scale * 10, 10000)
     lc_sim = np.interp(
         random_state.rand(npoints),
         np.cumsum(pdf(xx, **pdf_params)) / np.sum(pdf(xx, **pdf_params)),
         xx,
     )
-    lc_sim = (lc_sim - lc_sim.mean()) / lc_sim.std()
 
     nconv = True
     i = 0
@@ -346,12 +345,11 @@ def _x2_fit_helper(
     if len(envelopes[0]) != len(pgram):
         raise ValueError("required length is different than data length!")
 
-    obs = (pgram - envelopes.mean(axis=0)) ** 2 / envelopes.std(axis=0) ** 2
-    sim = (envelopes - envelopes.mean(axis=0)) ** 2 / envelopes.std(axis=0) ** 2
+    obs = (pgram - np.nanmedian(envelopes, axis=0)) ** 2 / envelopes.std(axis=0) ** 2
+    sim = (envelopes - np.nanmedian(envelopes, axis=0)) ** 2 / envelopes.std(axis=0) ** 2
     sumobs = np.sum(obs)
     sumsim = np.sum(sim, axis=-1)
     sign = len(np.where(sumobs >= sumsim)[0]) / nsims
-
     return sumobs * sign / len(obs)
 
 
@@ -419,7 +417,7 @@ def psd_fit(
                 **kwargs
             )
             results_list[_] = results_err
-        error = results_list.std(axis=0)
+        error = np.median(results_list,axis=0)
 
         if full_output:
             return results, error
