@@ -134,12 +134,7 @@ def Emmanoulopoulos_lightcurve_simulator(
 
     a_norm = np.abs(fft_norm) / npoints
 
-    if "scale" in pdf_params:
-        scale = pdf_params.get("scale")
-    else:
-        scale = 1
-
-    xx = np.linspace(0, scale * 10, 10000)
+    xx = np.linspace(0, 10, 10000)
     lc_sim = np.interp(
         random_state.rand(npoints),
         np.cumsum(pdf(xx, **pdf_params)) / np.sum(pdf(xx, **pdf_params)),
@@ -345,8 +340,8 @@ def _x2_fit_helper(
     if len(envelopes[0]) != len(pgram):
         raise ValueError("required length is different than data length!")
 
-    obs = (pgram - np.nanmedian(envelopes, axis=0)) ** 2 / envelopes.std(axis=0) ** 2
-    sim = (envelopes - np.nanmedian(envelopes, axis=0)) ** 2 / envelopes.std(axis=0) ** 2
+    obs = (pgram - np.nanmean(envelopes, axis=0)) ** 2 / envelopes.std(axis=0) ** 2
+    sim = (envelopes - np.nanmean(envelopes, axis=0)) ** 2 / envelopes.std(axis=0) ** 2
     sumobs = np.sum(obs)
     sumsim = np.sum(sim, axis=-1)
     sign = len(np.where(sumobs >= sumsim)[0]) / nsims
@@ -417,7 +412,7 @@ def psd_fit(
                 **kwargs
             )
             results_list[_] = results_err
-        error = np.median(results_list,axis=0)
+        error = np.std(results_list,axis=0)
 
         if full_output:
             return results, error
