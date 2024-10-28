@@ -298,6 +298,7 @@ def lightcurve_hist_envelope(
 
     return envelopes_hist, bins
 
+
 def _x2_fit_helper(
         psd_params_list,
         pgram,
@@ -344,6 +345,56 @@ def _x2_fit_helper(
     sim = (envelopes - np.nanmean(envelopes, axis=0)) ** 2 / envelopes.std(axis=0) ** 2
     sumobs = np.sum(obs)
     sumsim = np.sum(sim, axis=-1)
+    sign = len(np.where(sumobs >= sumsim)[0]) / nsims
+    return sumobs * sign / len(obs)
+
+
+def _pdf_fit_helper(
+        pdf_params_list,
+        hgram,
+        bins,
+        npoints,
+        spacing,
+        psd,
+        psd_params,
+        pdf,
+        nsims=500,
+        mean=None,
+        std=None,
+        noise=None,
+        noise_type="gauss",
+):
+    pdf_params_keys = list(inspect.signature(pdf).parameters.keys())
+
+    if len(pdf_params_keys[1:]) != len(pdf_params_list):
+        raise ValueError(
+            "parameter values do not correspond to the request from the pdf function"
+        )
+
+    pdf_params = dict(zip(pdf_params_keys[1:], pdf_params_list))
+
+    envelopes, bins = lightcurve_hist_envelope(
+        pdf,
+        psd,
+        npoints,
+        spacing,
+        nsims=nsims,
+        pdf_params=pdf_params,
+        psd_params=psd_params,
+        mean=mean,
+        std=std,
+        noise=noise,
+        noise_type=noise_type,
+        bins=bins,
+    )
+    mean = np.nanmean(envelopes, axis=0)
+    std = np.nanstd(envelopes, axis=0)
+    std[std == 0.] = np.sqrt(mean[std == 0]) / (nsims * (nsims - 1))
+    std[std == 0.] = 1
+    obs = (hgram - mean) ** 2 / std ** 2
+    sim = (envelopes - mean) ** 2 / std ** 2
+    sumobs = np.nansum(obs)
+    sumsim = np.nansum(sim, axis=-1)
     sign = len(np.where(sumobs >= sumsim)[0]) / nsims
     return sumobs * sign / len(obs)
 
@@ -412,7 +463,85 @@ def psd_fit(
                 **kwargs
             )
             results_list[_] = results_err
-        error = np.std(results_list,axis=0)
+        error = np.std(results_list, axis=0)
+
+        if full_output:
+            return results, error
+        else:
+            return results.x, error
+
+    else:
+        if full_output:
+            return results
+        else:
+            return results.x
+
+
+def pdf_fit(
+        hgram,
+        bins,
+        psd,
+        psd_params,
+        pdf,
+        pdf_initial,
+        spacing,
+        nsims=10000,
+        mean=None,
+        std=None,
+        noise=None,
+        noise_type="gauss",
+        nexp=50,
+        full_output=False,
+        **kwargs
+):
+    if not isinstance(nexp, int):
+        raise TypeError("The number of MC simulations for the error evaluation nexp must be an integer!")
+    kwargs.setdefault("method", "Powell")
+    results = minimize(
+        _pdf_fit_helper,
+        list(pdf_initial.values()),
+        args=(
+            hgram,
+            bins,
+            int(np.sum(hgram)),
+            spacing,
+            psd,
+            psd_params,
+            pdf,
+            nsims,
+            mean,
+            std,
+            noise,
+            noise_type,
+        ),
+        **kwargs
+    )
+    pdf_params_keys = list(inspect.signature(pdf).parameters.keys())
+    pdf_params = dict(zip(pdf_params_keys[1:], results.x))
+
+    if nexp > 0:
+        results_list = np.empty((nexp,) + results.x.shape)
+        test_hgram = pdf(bins, **psd_params)
+
+        for _ in range(nexp):
+            results_err = pdf_fit(
+                test_hgram,
+                bins,
+                psd,
+                psd_params,
+                pdf,
+                pdf_params,
+                spacing,
+                nsims=100,
+                mean=mean,
+                std=std,
+                noise=noise,
+                noise_type=noise_type,
+                nexp=-1,
+                **kwargs
+            )
+            results_list[_] = results_err
+        error = results_list.std(axis=0)
 
         if full_output:
             return results, error
