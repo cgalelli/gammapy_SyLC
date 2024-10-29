@@ -6,8 +6,8 @@ from scipy.signal import periodogram
 from scipy.optimize import minimize
 
 
-def lognormal(x, s):
-    return lognorm.pdf(x, s, loc=0, scale=1)
+def lognormal(x, s=1, scale=1):
+    return lognorm.pdf(x, s, loc=0, scale=scale)
 
 
 def emm_gammalognorm(x, wgamma, a, s, loc, scale):
@@ -48,7 +48,6 @@ def TimmerKonig_lightcurve_simulator(
 
     frequencies = np.fft.fftfreq(npoints_ext, spacing.value)
 
-    # To obtain real data only the positive or negative part of the frequency is necessary.
     real_frequencies = np.sort(np.abs(frequencies[frequencies < 0]))
 
     if power_spectrum_params:
