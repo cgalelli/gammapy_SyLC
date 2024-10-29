@@ -6,9 +6,11 @@ from scipy.signal import periodogram
 from scipy.optimize import minimize
 
 
-def lognormal(x, s=1, scale=1):
-    return lognorm.pdf(x, s, loc=0, scale=scale)
+def lognormal(x, s):
+    return lognorm.pdf(x, s, loc=0, scale=1)
 
+def gammaf(x, a):
+    return gamma.pdf(x, a, loc=0, scale=1)
 
 def emm_gammalognorm(x, wgamma, a, s, loc, scale):
     return wgamma * gamma.pdf(x, a) + (1 - wgamma) * lognorm.pdf(x, s, loc, scale)
@@ -489,12 +491,10 @@ def pdf_fit(
         std=None,
         noise=None,
         noise_type="gauss",
-        nexp=50,
-        full_output=False,
+        output_type="value",
         **kwargs
 ):
-    if not isinstance(nexp, int):
-        raise TypeError("The number of MC simulations for the error evaluation nexp must be an integer!")
+
     kwargs.setdefault("method", "Powell")
     results = minimize(
         _pdf_fit_helper,
@@ -515,40 +515,12 @@ def pdf_fit(
         ),
         **kwargs
     )
-    pdf_params_keys = list(inspect.signature(pdf).parameters.keys())
-    pdf_params = dict(zip(pdf_params_keys[1:], results.x))
 
-    if nexp > 0:
-        results_list = np.empty((nexp,) + results.x.shape)
-        test_hgram = pdf(bins, **psd_params)
-
-        for _ in range(nexp):
-            results_err = pdf_fit(
-                test_hgram,
-                bins,
-                psd,
-                psd_params,
-                pdf,
-                pdf_params,
-                spacing,
-                nsims=100,
-                mean=mean,
-                std=std,
-                noise=noise,
-                noise_type=noise_type,
-                nexp=-1,
-                **kwargs
-            )
-            results_list[_] = results_err
-        error = results_list.std(axis=0)
-
-        if full_output:
-            return results, error
-        else:
-            return results.x, error
-
+    if output_type == "parameters":
+        return results.x
+    elif output_type == "value":
+        return results.func
+    elif output_type == "full":
+        return results
     else:
-        if full_output:
-            return results
-        else:
-            return results.x
+        raise ValueError(f"Accepted values for {output_type} are 'parameters', 'value' or 'full'")
