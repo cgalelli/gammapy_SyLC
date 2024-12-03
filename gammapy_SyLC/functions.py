@@ -4,13 +4,16 @@ from gammapy.utils.random import get_random_state
 from scipy.stats import gamma, lognorm
 from scipy.signal import periodogram
 from scipy.optimize import minimize
+from multiprocessing import Pool
 
 
 def lognormal(x, s):
     return lognorm.pdf(x, s, loc=0, scale=1)
 
+
 def gammaf(x, a):
     return gamma.pdf(x, a, loc=0, scale=1)
+
 
 def emm_gammalognorm(x, wgamma, a, s, loc, scale):
     return wgamma * gamma.pdf(x, a) + (1 - wgamma) * lognorm.pdf(x, s, loc, scale)
@@ -21,20 +24,20 @@ def bpl(x, norm, aup, adn, x0):
 
 
 def pl(x, index):
-    return x ** index
+    return x**index
 
 
 def TimmerKonig_lightcurve_simulator(
-        power_spectrum,
-        npoints,
-        spacing,
-        nchunks=10,
-        random_state="random-seed",
-        power_spectrum_params=None,
-        mean=0.0,
-        std=1.0,
-        noise=None,
-        noise_type="gauss"
+    power_spectrum,
+    npoints,
+    spacing,
+    nchunks=10,
+    random_state="random-seed",
+    power_spectrum_params=None,
+    mean=0.0,
+    std=1.0,
+    noise=None,
+    noise_type="gauss",
 ):
     if not callable(power_spectrum):
         raise ValueError(
@@ -106,19 +109,19 @@ def TimmerKonig_lightcurve_simulator(
 
 
 def Emmanoulopoulos_lightcurve_simulator(
-        pdf,
-        psd,
-        npoints,
-        spacing,
-        pdf_params=None,
-        psd_params=None,
-        random_state="random-seed",
-        imax=1000,
-        nchunks=10,
-        mean=0.0,
-        std=1.0,
-        noise=None,
-        noise_type="gauss"
+    pdf,
+    psd,
+    npoints,
+    spacing,
+    pdf_params=None,
+    psd_params=None,
+    random_state="random-seed",
+    imax=1000,
+    nchunks=10,
+    mean=0.0,
+    std=1.0,
+    noise=None,
+    noise_type="gauss",
 ):
     lc_norm, taxis = TimmerKonig_lightcurve_simulator(
         psd,
@@ -163,7 +166,9 @@ def Emmanoulopoulos_lightcurve_simulator(
         elif noise_type == "poisson":
             noise_series = np.random.poisson(lam=noise, size=npoints)
         else:
-            raise ValueError("Accepted values for 'noise_type' are 'gauss' or 'poisson'")
+            raise ValueError(
+                "Accepted values for 'noise_type' are 'gauss' or 'poisson'"
+            )
         lc_sim += noise_series
 
     lc_sim = lc_sim * std + mean
@@ -171,118 +176,34 @@ def Emmanoulopoulos_lightcurve_simulator(
     return lc_sim, taxis
 
 
-def lightcurve_psd_envelope(
+def _generate_periodogram(args):
+    """Helper function to generate a periodogram for a single realization."""
+    (
+        simulator,
+        pdf,
         psd,
         npoints,
         spacing,
-        pdf=None,
-        nsims=10000,
-        pdf_params=None,
-        psd_params=None,
-        simulator="TK",
-        mean=0.0,
-        std=1.0,
-        oversample=10,
-        noise=None,
-        noise_type="gauss"
-):
-    npoints_ext = npoints * oversample
-    spacing_ext = spacing / oversample
-    tseries, taxis = np.empty(npoints_ext), np.empty(npoints_ext)
+        pdf_params,
+        psd_params,
+        mean,
+        std,
+        noise,
+        noise_type,
+    ) = args
     if simulator == "TK":
-        tseries, taxis = TimmerKonig_lightcurve_simulator(
+        tseries, _ = TimmerKonig_lightcurve_simulator(
             psd,
-            npoints_ext,
-            spacing_ext,
+            npoints,
+            spacing,
             power_spectrum_params=psd_params,
             mean=mean,
             std=std,
             noise=noise,
-            noise_type=noise_type
+            noise_type=noise_type,
         )
     elif simulator == "EMM":
-        tseries, taxis = Emmanoulopoulos_lightcurve_simulator(
-            pdf,
-            psd,
-            npoints_ext,
-            spacing_ext,
-            pdf_params=pdf_params,
-            psd_params=psd_params,
-            mean=mean,
-            std=std,
-            noise=noise,
-            noise_type=noise_type
-        )
-    freqs, pg = periodogram(tseries, 1 / spacing_ext.value)
-    envelopes_psd = np.empty((nsims, npoints // 2))
-    envelopes_psd[0] = pg[1: npoints // 2 + 1]
-
-    for _ in range(1, nsims):
-        if simulator == "TK":
-            tseries, taxis = TimmerKonig_lightcurve_simulator(
-                psd,
-                npoints_ext,
-                spacing_ext,
-                power_spectrum_params=psd_params,
-                mean=mean,
-                std=std,
-                noise=noise,
-                noise_type=noise_type
-            )
-        else:
-            tseries, taxis = Emmanoulopoulos_lightcurve_simulator(
-                pdf,
-                psd,
-                npoints_ext,
-                spacing_ext,
-                pdf_params=pdf_params,
-                psd_params=psd_params,
-                mean=mean,
-                std=std,
-                noise=noise,
-                noise_type=noise_type
-            )
-
-        freqs, pg = periodogram(tseries, 1 / spacing_ext.value)
-        envelopes_psd[_] = pg[1: npoints // 2 + 1]
-
-    return envelopes_psd, freqs[1: npoints // 2 + 1]
-
-
-def lightcurve_hist_envelope(
-        pdf,
-        psd,
-        npoints,
-        spacing,
-        nsims=10000,
-        pdf_params=None,
-        psd_params=None,
-        mean=0.0,
-        std=1.0,
-        noise=None,
-        noise_type="gauss",
-        bins=None
-):
-    if bins is None:
-        bins = int(10 ** np.floor(np.log10(npoints)))
-    tseries, taxis = Emmanoulopoulos_lightcurve_simulator(
-        pdf,
-        psd,
-        npoints,
-        spacing,
-        pdf_params=pdf_params,
-        psd_params=psd_params,
-        mean=mean,
-        std=std,
-        noise=noise,
-        noise_type=noise_type
-    )
-
-    hist, bins = np.histogram(tseries, bins=bins)
-    envelopes_hist = np.empty((nsims, len(hist)))
-    envelopes_hist[0] = hist
-    for _ in range(1, nsims):
-        tseries, taxis = Emmanoulopoulos_lightcurve_simulator(
+        tseries, _ = Emmanoulopoulos_lightcurve_simulator(
             pdf,
             psd,
             npoints,
@@ -292,28 +213,147 @@ def lightcurve_hist_envelope(
             mean=mean,
             std=std,
             noise=noise,
-            noise_type=noise_type
+            noise_type=noise_type,
         )
-        hist, bins = np.histogram(tseries, bins=bins)
-        envelopes_hist[_] = hist
+    else:
+        raise ValueError("Invalid simulator. Use 'TK' or 'EMM'.")
+
+    freqs, pg = periodogram(tseries, 1 / spacing.value)
+    return pg
+
+
+def _generate_histogram(args):
+    """Helper function to generate a histogram for a single realization."""
+    (
+        pdf,
+        psd,
+        npoints,
+        spacing,
+        pdf_params,
+        psd_params,
+        mean,
+        std,
+        noise,
+        noise_type,
+        bins,
+    ) = args
+    tseries, _ = Emmanoulopoulos_lightcurve_simulator(
+        pdf,
+        psd,
+        npoints,
+        spacing,
+        pdf_params=pdf_params,
+        psd_params=psd_params,
+        mean=mean,
+        std=std,
+        noise=noise,
+        noise_type=noise_type,
+    )
+    hist, _ = np.histogram(tseries, bins=bins)
+    return hist
+
+
+def lightcurve_psd_envelope(
+    psd,
+    npoints,
+    spacing,
+    pdf=None,
+    nsims=10000,
+    pdf_params=None,
+    psd_params=None,
+    simulator="TK",
+    mean=0.0,
+    std=1.0,
+    oversample=10,
+    noise=None,
+    noise_type="gauss",
+):
+    npoints_ext = npoints * oversample
+    spacing_ext = spacing / oversample
+
+    args = [
+        (
+            simulator,
+            pdf,
+            psd,
+            npoints_ext,
+            spacing_ext,
+            pdf_params,
+            psd_params,
+            mean,
+            std,
+            noise,
+            noise_type,
+        )
+        for _ in range(nsims)
+    ]
+
+    with Pool() as pool:
+        results = pool.map(_generate_periodogram, args)
+
+    envelopes_psd = np.array(results)[..., 1 : npoints // 2 + 1]
+
+    freqs = np.fft.fftfreq(npoints_ext, spacing_ext.value)[1 : npoints // 2 + 1]
+
+    return envelopes_psd, freqs
+
+
+def lightcurve_hist_envelope(
+    pdf,
+    psd,
+    npoints,
+    spacing,
+    nsims=10000,
+    pdf_params=None,
+    psd_params=None,
+    mean=0.0,
+    std=1.0,
+    noise=None,
+    noise_type="gauss",
+    bins=None,
+):
+    if bins is None:
+        bins = int(10 ** np.floor(np.log10(npoints)))
+
+    args = [
+        (
+            pdf,
+            psd,
+            npoints,
+            spacing,
+            pdf_params,
+            psd_params,
+            mean,
+            std,
+            noise,
+            noise_type,
+            bins,
+        )
+        for _ in range(nsims)
+    ]
+
+    with Pool() as pool:
+        results = pool.map(_generate_histogram, args)
+
+    envelopes_hist = np.array(results)
 
     return envelopes_hist, bins
 
 
 def _x2_fit_helper(
-        psd_params_list,
-        pgram,
-        npoints,
-        spacing,
-        psd,
-        pdf=None,
-        pdf_params=None,
-        simulator="TK",
-        nsims=10000,
-        mean=None,
-        std=None,
-        noise=None,
-        noise_type="gauss"
+    psd_params_list,
+    pgram,
+    npoints,
+    spacing,
+    psd,
+    pdf=None,
+    pdf_params=None,
+    simulator="TK",
+    nsims=10000,
+    mean=None,
+    std=None,
+    noise=None,
+    noise_type="gauss",
 ):
     psd_params_keys = list(inspect.signature(psd).parameters.keys())
 
@@ -336,7 +376,7 @@ def _x2_fit_helper(
         mean=mean,
         std=std,
         noise=noise,
-        noise_type=noise_type
+        noise_type=noise_type,
     )
 
     if len(envelopes[0]) != len(pgram):
@@ -351,19 +391,19 @@ def _x2_fit_helper(
 
 
 def _pdf_fit_helper(
-        pdf_params_list,
-        hgram,
-        bins,
-        npoints,
-        spacing,
-        psd,
-        psd_params,
-        pdf,
-        nsims=500,
-        mean=None,
-        std=None,
-        noise=None,
-        noise_type="gauss",
+    pdf_params_list,
+    hgram,
+    bins,
+    npoints,
+    spacing,
+    psd,
+    psd_params,
+    pdf,
+    nsims=500,
+    mean=None,
+    std=None,
+    noise=None,
+    noise_type="gauss",
 ):
     pdf_params_keys = list(inspect.signature(pdf).parameters.keys())
 
@@ -390,10 +430,10 @@ def _pdf_fit_helper(
     )
     mean = np.nanmean(envelopes, axis=0)
     std = np.nanstd(envelopes, axis=0)
-    std[std == 0.] = np.sqrt(mean[std == 0]) / (nsims * (nsims - 1))
-    std[std == 0.] = 1
-    obs = (hgram - mean) ** 2 / std ** 2
-    sim = (envelopes - mean) ** 2 / std ** 2
+    std[std == 0.0] = np.sqrt(mean[std == 0]) / (nsims * (nsims - 1))
+    std[std == 0.0] = 1
+    obs = (hgram - mean) ** 2 / std**2
+    sim = (envelopes - mean) ** 2 / std**2
     sumobs = np.nansum(obs)
     sumsim = np.nansum(sim, axis=-1)
     sign = len(np.where(sumobs >= sumsim)[0]) / nsims
@@ -401,24 +441,26 @@ def _pdf_fit_helper(
 
 
 def psd_fit(
-        pgram,
-        psd,
-        psd_initial,
-        spacing,
-        pdf=None,
-        pdf_params=None,
-        simulator="TK",
-        nsims=10000,
-        mean=None,
-        std=None,
-        noise=None,
-        noise_type="gauss",
-        nexp=50,
-        full_output=False,
-        **kwargs
+    pgram,
+    psd,
+    psd_initial,
+    spacing,
+    pdf=None,
+    pdf_params=None,
+    simulator="TK",
+    nsims=10000,
+    mean=None,
+    std=None,
+    noise=None,
+    noise_type="gauss",
+    nexp=50,
+    full_output=False,
+    **kwargs,
 ):
     if not isinstance(nexp, int):
-        raise TypeError("The number of MC simulations for the error evaluation nexp must be an integer!")
+        raise TypeError(
+            "The number of MC simulations for the error evaluation nexp must be an integer!"
+        )
     kwargs.setdefault("method", "Powell")
     results = minimize(
         _x2_fit_helper,
@@ -435,9 +477,9 @@ def psd_fit(
             mean,
             std,
             noise,
-            noise_type
+            noise_type,
         ),
-        **kwargs
+        **kwargs,
     )
     psd_params_keys = list(inspect.signature(psd).parameters.keys())
     psd_params = dict(zip(psd_params_keys[1:], results.x))
@@ -461,7 +503,7 @@ def psd_fit(
                 mean=mean,
                 std=std,
                 nexp=-1,
-                **kwargs
+                **kwargs,
             )
             results_list[_] = results_err
         error = np.std(results_list, axis=0)
@@ -479,20 +521,20 @@ def psd_fit(
 
 
 def pdf_fit(
-        hgram,
-        bins,
-        psd,
-        psd_params,
-        pdf,
-        pdf_initial,
-        spacing,
-        nsims=10000,
-        mean=None,
-        std=None,
-        noise=None,
-        noise_type="gauss",
-        output_type="value",
-        **kwargs
+    hgram,
+    bins,
+    psd,
+    psd_params,
+    pdf,
+    pdf_initial,
+    spacing,
+    nsims=10000,
+    mean=None,
+    std=None,
+    noise=None,
+    noise_type="gauss",
+    output_type="value",
+    **kwargs,
 ):
 
     kwargs.setdefault("method", "Powell")
@@ -513,7 +555,7 @@ def pdf_fit(
             noise,
             noise_type,
         ),
-        **kwargs
+        **kwargs,
     )
 
     if output_type == "parameters":
@@ -523,4 +565,6 @@ def pdf_fit(
     elif output_type == "full":
         return results
     else:
-        raise ValueError(f"Accepted values for {output_type} are 'parameters', 'value' or 'full'")
+        raise ValueError(
+            f"Accepted values for {output_type} are 'parameters', 'value' or 'full'"
+        )
