@@ -1,7 +1,7 @@
 import numpy as np
 import inspect
 from gammapy.utils.random import get_random_state
-from scipy.stats import gamma, lognorm
+from scipy.stats import gamma, lognorm, levy_stable
 from scipy.signal import periodogram
 from scipy.optimize import minimize
 from multiprocessing import Pool
@@ -15,6 +15,10 @@ def gammaf(x, a):
     return gamma.pdf(x, a, loc=0, scale=1)
 
 
+def alpha_stable(x, a, b, loc, scale):
+    return levy_stable.pdf(x, a, b, loc, scale)
+
+
 def emm_gammalognorm(x, wgamma, a, s, loc, scale):
     return wgamma * gamma.pdf(x, a) + (1 - wgamma) * lognorm.pdf(x, s, loc, scale)
 
@@ -24,20 +28,20 @@ def bpl(x, norm, aup, adn, x0):
 
 
 def pl(x, index):
-    return x**index
+    return x ** index
 
 
 def TimmerKonig_lightcurve_simulator(
-    power_spectrum,
-    npoints,
-    spacing,
-    nchunks=10,
-    random_state="random-seed",
-    power_spectrum_params=None,
-    mean=0.0,
-    std=1.0,
-    noise=None,
-    noise_type="gauss",
+        power_spectrum,
+        npoints,
+        spacing,
+        nchunks=10,
+        random_state="random-seed",
+        power_spectrum_params=None,
+        mean=0.0,
+        std=1.0,
+        noise=None,
+        noise_type="gauss",
 ):
     if not callable(power_spectrum):
         raise ValueError(
@@ -109,19 +113,19 @@ def TimmerKonig_lightcurve_simulator(
 
 
 def Emmanoulopoulos_lightcurve_simulator(
-    pdf,
-    psd,
-    npoints,
-    spacing,
-    pdf_params=None,
-    psd_params=None,
-    random_state="random-seed",
-    imax=1000,
-    nchunks=10,
-    mean=0.0,
-    std=1.0,
-    noise=None,
-    noise_type="gauss",
+        pdf,
+        psd,
+        npoints,
+        spacing,
+        pdf_params=None,
+        psd_params=None,
+        random_state="random-seed",
+        imax=1000,
+        nchunks=10,
+        mean=0.0,
+        std=1.0,
+        noise=None,
+        noise_type="gauss",
 ):
     lc_norm, taxis = TimmerKonig_lightcurve_simulator(
         psd,
@@ -138,7 +142,7 @@ def Emmanoulopoulos_lightcurve_simulator(
 
     a_norm = np.abs(fft_norm) / npoints
 
-    xx = np.linspace(0, 10, 10000)
+    xx = np.linspace(-10, 10, 10000)
     lc_sim = np.interp(
         random_state.rand(npoints),
         np.cumsum(pdf(xx, **pdf_params)) / np.sum(pdf(xx, **pdf_params)),
@@ -254,19 +258,19 @@ def _generate_histogram(args):
 
 
 def lightcurve_psd_envelope(
-    psd,
-    npoints,
-    spacing,
-    pdf=None,
-    nsims=10000,
-    pdf_params=None,
-    psd_params=None,
-    simulator="TK",
-    mean=0.0,
-    std=1.0,
-    oversample=10,
-    noise=None,
-    noise_type="gauss",
+        psd,
+        npoints,
+        spacing,
+        pdf=None,
+        nsims=10000,
+        pdf_params=None,
+        psd_params=None,
+        simulator="TK",
+        mean=0.0,
+        std=1.0,
+        oversample=10,
+        noise=None,
+        noise_type="gauss",
 ):
     npoints_ext = npoints * oversample
     spacing_ext = spacing / oversample
@@ -291,26 +295,26 @@ def lightcurve_psd_envelope(
     with Pool() as pool:
         results = pool.map(_generate_periodogram, args)
 
-    envelopes_psd = np.array(results)[..., 1 : npoints // 2 + 1]
+    envelopes_psd = np.array(results)[..., 1: npoints // 2 + 1]
 
-    freqs = np.fft.fftfreq(npoints_ext, spacing_ext.value)[1 : npoints // 2 + 1]
+    freqs = np.fft.fftfreq(npoints_ext, spacing_ext.value)[1: npoints // 2 + 1]
 
     return envelopes_psd, freqs
 
 
 def lightcurve_hist_envelope(
-    pdf,
-    psd,
-    npoints,
-    spacing,
-    nsims=10000,
-    pdf_params=None,
-    psd_params=None,
-    mean=0.0,
-    std=1.0,
-    noise=None,
-    noise_type="gauss",
-    bins=None,
+        pdf,
+        psd,
+        npoints,
+        spacing,
+        nsims=10000,
+        pdf_params=None,
+        psd_params=None,
+        mean=0.0,
+        std=1.0,
+        noise=None,
+        noise_type="gauss",
+        bins=None,
 ):
     if bins is None:
         bins = int(10 ** np.floor(np.log10(npoints)))
@@ -341,19 +345,19 @@ def lightcurve_hist_envelope(
 
 
 def _x2_fit_helper(
-    psd_params_list,
-    pgram,
-    npoints,
-    spacing,
-    psd,
-    pdf=None,
-    pdf_params=None,
-    simulator="TK",
-    nsims=10000,
-    mean=None,
-    std=None,
-    noise=None,
-    noise_type="gauss",
+        psd_params_list,
+        pgram,
+        npoints,
+        spacing,
+        psd,
+        pdf=None,
+        pdf_params=None,
+        simulator="TK",
+        nsims=10000,
+        mean=None,
+        std=None,
+        noise=None,
+        noise_type="gauss",
 ):
     psd_params_keys = list(inspect.signature(psd).parameters.keys())
 
@@ -391,19 +395,19 @@ def _x2_fit_helper(
 
 
 def _pdf_fit_helper(
-    pdf_params_list,
-    hgram,
-    bins,
-    npoints,
-    spacing,
-    psd,
-    psd_params,
-    pdf,
-    nsims=500,
-    mean=None,
-    std=None,
-    noise=None,
-    noise_type="gauss",
+        pdf_params_list,
+        hgram,
+        bins,
+        npoints,
+        spacing,
+        psd,
+        psd_params,
+        pdf,
+        nsims=500,
+        mean=None,
+        std=None,
+        noise=None,
+        noise_type="gauss",
 ):
     pdf_params_keys = list(inspect.signature(pdf).parameters.keys())
 
@@ -432,8 +436,8 @@ def _pdf_fit_helper(
     std = np.nanstd(envelopes, axis=0)
     std[std == 0.0] = np.sqrt(mean[std == 0]) / (nsims * (nsims - 1))
     std[std == 0.0] = 1
-    obs = (hgram - mean) ** 2 / std**2
-    sim = (envelopes - mean) ** 2 / std**2
+    obs = (hgram - mean) ** 2 / std ** 2
+    sim = (envelopes - mean) ** 2 / std ** 2
     sumobs = np.nansum(obs)
     sumsim = np.nansum(sim, axis=-1)
     sign = len(np.where(sumobs >= sumsim)[0]) / nsims
@@ -441,21 +445,21 @@ def _pdf_fit_helper(
 
 
 def psd_fit(
-    pgram,
-    psd,
-    psd_initial,
-    spacing,
-    pdf=None,
-    pdf_params=None,
-    simulator="TK",
-    nsims=10000,
-    mean=None,
-    std=None,
-    noise=None,
-    noise_type="gauss",
-    nexp=50,
-    full_output=False,
-    **kwargs,
+        pgram,
+        psd,
+        psd_initial,
+        spacing,
+        pdf=None,
+        pdf_params=None,
+        simulator="TK",
+        nsims=10000,
+        mean=None,
+        std=None,
+        noise=None,
+        noise_type="gauss",
+        nexp=50,
+        full_output=False,
+        **kwargs,
 ):
     if not isinstance(nexp, int):
         raise TypeError(
@@ -521,22 +525,21 @@ def psd_fit(
 
 
 def pdf_fit(
-    hgram,
-    bins,
-    psd,
-    psd_params,
-    pdf,
-    pdf_initial,
-    spacing,
-    nsims=10000,
-    mean=None,
-    std=None,
-    noise=None,
-    noise_type="gauss",
-    output_type="value",
-    **kwargs,
+        hgram,
+        bins,
+        psd,
+        psd_params,
+        pdf,
+        pdf_initial,
+        spacing,
+        nsims=10000,
+        mean=None,
+        std=None,
+        noise=None,
+        noise_type="gauss",
+        output_type="value",
+        **kwargs,
 ):
-
     kwargs.setdefault("method", "Powell")
     results = minimize(
         _pdf_fit_helper,

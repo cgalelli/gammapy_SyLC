@@ -1,6 +1,7 @@
 from .functions import (
     lognormal,
     gammaf,
+    alpha_stable,
     emm_gammalognorm,
     bpl,
     pl,
