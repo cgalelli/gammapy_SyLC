@@ -1,7 +1,7 @@
 import numpy as np
 import inspect
 from gammapy.utils.random import get_random_state
-from scipy.stats import gamma, lognorm, levy_stable
+from scipy.stats import gamma, lognorm, levy_stable, wasserstein_distance
 from scipy.signal import periodogram
 from scipy.optimize import minimize
 from multiprocessing import Pool
@@ -432,16 +432,11 @@ def _pdf_fit_helper(
         noise_type=noise_type,
         bins=bins,
     )
-    mean = np.nanmean(envelopes, axis=0)
-    std = np.nanstd(envelopes, axis=0)
-    std[std == 0.0] = np.sqrt(mean[std == 0]) / (nsims * (nsims - 1))
-    std[std == 0.0] = 1
-    obs = (hgram - mean) ** 2 / std ** 2
-    sim = (envelopes - mean) ** 2 / std ** 2
-    sumobs = np.nansum(obs)
-    sumsim = np.nansum(sim, axis=-1)
-    sign = len(np.where(sumobs >= sumsim)[0]) / nsims
-    return sumobs * sign / len(obs)
+
+    distance = wasserstein_distance(bins[:-1], bins[:-1], hgram, np.mean(envelopes, axis=0))
+    distance_sims = [wasserstein_distance(bins[:-1], bins[:-1], envelope, np.mean(envelopes, axis=0)) for envelope in envelopes]
+    sign = len(np.where(distance >= distance_sims)[0]) / nsims
+    return distance * sign / len(hgram)
 
 
 def psd_fit(
