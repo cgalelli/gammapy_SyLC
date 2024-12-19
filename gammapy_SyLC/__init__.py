@@ -14,4 +14,4 @@ from .fitting import (
     psd_fit,
     pdf_fit,
 )
-from .helpers import lightcurve_psd_envelope
+from .helpers import lightcurve_psd_envelope, interp_pdf

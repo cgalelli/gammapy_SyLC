@@ -2,7 +2,7 @@ import inspect
 import numpy as np
 from multiprocessing import Pool
 from scipy.signal import periodogram
-from scipy.interpolate import interp1d
+from scipy.interpolate import PchipInterpolator
 
 from .simulators import TimmerKonig_lightcurve_simulator, Emmanoulopoulos_lightcurve_simulator
 
@@ -167,6 +167,81 @@ def lightcurve_psd_envelope(
     return envelopes_psd, freqs
 
 
+def interp_pdf(
+        psd,
+        pdf,
+        psd_params,
+        pdf_params,
+        npoints,
+        spacing,
+        nsims=10000,
+        mean=0.0,
+        std=1.0,
+        noise=None,
+        noise_type="gauss",
+):
+    """
+    Generate an interpolated probability density function (PDF) for flux amplitudes
+    based on Monte Carlo simulations using the Emmanoulopoulos algorithm.
+
+    Parameters:
+    -----------
+    psd : callable
+        Target power spectral density (PSD) function to simulate the light curves.
+    pdf : callable
+        Target probability density function (PDF) for flux amplitudes.
+    psd_params : dict
+        Parameters for the PSD function.
+    pdf_params : dict
+        Parameters for the PDF function.
+    npoints : int
+        Number of points in each simulated light curve.
+    spacing : astropy.units.Quantity
+        Time spacing between successive points in the simulated light curve.
+    nsims : int, optional
+        Number of Monte Carlo simulations to generate. Default is 10000.
+    mean : float, optional
+        Desired mean of the simulated light curves. Default is 0.0.
+    std : float, optional
+        Desired standard deviation of the simulated light curves. Default is 1.0.
+    noise : float or None, optional
+        Noise amplitude to add to the simulated light curves. Default is None.
+    noise_type : {'gauss', 'counts'}, optional
+        Type of noise to add to the simulated light curves. Default is 'gauss'.
+
+    Returns:
+    --------
+    pdf_interpolated : PchipInterpolator
+        A piecewise cubic Hermite interpolating polynomial (PCHIP) object representing
+        the observed PDF based on the simulated flux amplitudes.
+    """
+    args = [
+        (
+            pdf,
+            psd,
+            npoints,
+            spacing,
+            pdf_params,
+            psd_params,
+            mean,
+            std,
+            noise,
+            noise_type,
+        )
+        for _ in range(nsims)
+    ]
+
+    with Pool() as pool:
+        results = pool.map(_wrap_emm, args)
+
+    hist, bin_edges = np.histogram(np.array(results).flatten(), bins=int(npoints * nsims / 10), density=True)
+    bin_centers = (bin_edges[:-1] + bin_edges[1:]) / 2
+
+    pdf_interpolated = PchipInterpolator(bin_centers, hist)
+
+    return pdf_interpolated
+
+
 def _psd_fit_helper(
         psd_params_list,
         pgram,
@@ -240,29 +315,19 @@ def _pdf_fit_helper(
 
     pdf_params = dict(zip(pdf_params_keys[1:], pdf_params_list))
 
-    args = [
-        (
-            pdf,
-            psd,
-            npoints,
-            spacing,
-            pdf_params,
-            psd_params,
-            mean,
-            std,
-            noise,
-            noise_type,
-        )
-        for _ in range(nsims)
-    ]
-
-    with Pool() as pool:
-        results = pool.map(_wrap_emm, args)
-
-    hist, bin_edges = np.histogram(np.array(results).flatten(), bins=int(npoints * nsims / 10), density=True)
-    bin_centers = (bin_edges[:-1] + bin_edges[1:]) / 2
-
-    pdf_interpolated = interp1d(bin_centers, hist, kind="cubic", fill_value="extrapolate")
+    pdf_interpolated = interp_pdf(
+        psd,
+        pdf,
+        psd_params,
+        pdf_params,
+        npoints,
+        spacing,
+        nsims=nsims,
+        mean=mean,
+        std=std,
+        noise=noise,
+        noise_type=noise_type,
+    )
 
     likelihoods = np.maximum(pdf_interpolated(flux), 1e-10)
     nll = -np.sum(np.log(likelihoods))

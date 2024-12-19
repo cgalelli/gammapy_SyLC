@@ -5,7 +5,6 @@ from scipy.optimize import minimize
 from .helpers import _pdf_fit_helper, _psd_fit_helper
 
 
-
 def psd_fit(
         pgram,
         psd,
