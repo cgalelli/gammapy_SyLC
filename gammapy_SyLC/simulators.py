@@ -1,5 +1,44 @@
+import numbers
 import numpy as np
-from gammapy.utils.random import get_random_state
+
+
+def _random_state(init):
+    """Get a `numpy.random.RandomState` instance.
+
+    The purpose of this utility function is to have a flexible way
+    to initialise a `~numpy.random.RandomState` instance,
+    a.k.a. a random number generator (``rng``).
+
+    Parameters
+    ----------
+    init : {int, 'random-seed', 'global-rng', `~numpy.random.RandomState`}
+        Available options to initialise the RandomState object:
+
+        * ``int`` -- new RandomState instance seeded with this integer
+          (calls `~numpy.random.RandomState` with ``seed=init``)
+        * ``'random-seed'`` -- new RandomState instance seeded in a random way
+          (calls `~numpy.random.RandomState` with ``seed=None``)
+        * ``'global-rng'``, return the RandomState singleton used by ``numpy.random``.
+        * `~numpy.random.RandomState` -- do nothing, return the input.
+
+    Returns
+    -------
+    random_state : `~numpy.random.RandomState`
+        RandomState instance.
+    """
+    if isinstance(init, (numbers.Integral, np.integer)):
+        return np.random.RandomState(init)
+    elif init == "random-seed":
+        return np.random.RandomState(None)
+    elif init == "global-rng":
+        return np.random.mtrand._rand
+    elif isinstance(init, np.random.RandomState):
+        return init
+    else:
+        raise ValueError(
+            "{} cannot be used to seed a numpy.random.RandomState"
+            " instance".format(init)
+        )
 
 
 def TimmerKonig_lightcurve_simulator(
@@ -55,7 +94,7 @@ def TimmerKonig_lightcurve_simulator(
     if not isinstance(npoints * nchunks, int):
         raise TypeError("npoints and nchunks must be integers")
 
-    random_state = get_random_state(random_state)
+    random_state = _random_state(random_state)
 
     npoints_ext = npoints * nchunks
 
@@ -179,7 +218,7 @@ def Emmanoulopoulos_lightcurve_simulator(
         random_state=random_state,
     )
 
-    random_state = get_random_state(random_state)
+    random_state = _random_state(random_state)
 
     fft_norm = np.fft.rfft(lc_norm)
 
@@ -221,6 +260,3 @@ def Emmanoulopoulos_lightcurve_simulator(
     lc_sim = lc_sim * std + mean
 
     return lc_sim, taxis
-
-
-
