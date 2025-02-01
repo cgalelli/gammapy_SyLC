@@ -13,5 +13,6 @@ from .simulators import (
 from .fitting import (
     psd_fit,
     pdf_fit,
+    compare_pdf_models,
 )
 from .helpers import lightcurve_psd_envelope, interp_pdf

@@ -234,7 +234,8 @@ def interp_pdf(
     with Pool() as pool:
         results = pool.map(_wrap_emm, args)
 
-    hist, bin_edges = np.histogram(np.array(results).flatten(), bins=int(npoints * nsims / 10), density=True)
+    hist, bin_edges = np.histogram(np.array(results).flatten(), bins=int(npoints*nsims/100), density=True)
+
     bin_centers = (bin_edges[:-1] + bin_edges[1:]) / 2
 
     pdf_interpolated = PchipInterpolator(bin_centers, hist)
@@ -303,8 +304,7 @@ def _pdf_fit_helper(
         nsims=500,
         mean=None,
         std=None,
-        noise=None,
-        noise_type="gauss",
+        flux_error=None,
 ):
     pdf_params_keys = list(inspect.signature(pdf).parameters.keys())
 
@@ -325,11 +325,14 @@ def _pdf_fit_helper(
         nsims=nsims,
         mean=mean,
         std=std,
-        noise=noise,
-        noise_type=noise_type,
     )
 
-    likelihoods = np.maximum(pdf_interpolated(flux), 1e-10)
+    if flux_error:
+        likelihoods = np.prod(np.maximum(pdf_interpolated(np.random.normal(flux[:, None], flux_error[:, None], (len(flux), 10))), 1e-10),
+                  axis=-1) ** (1 / 10)
+    else:
+        likelihoods = np.maximum(pdf_interpolated(flux), 1e-10)
+
     nll = -np.sum(np.log(likelihoods))
 
     return nll

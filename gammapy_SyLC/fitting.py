@@ -3,6 +3,7 @@ import numpy as np
 from scipy.optimize import minimize
 
 from .helpers import _pdf_fit_helper, _psd_fit_helper
+from .simulators import Emmanoulopoulos_lightcurve_simulator
 
 
 def psd_fit(
@@ -140,8 +141,7 @@ def pdf_fit(
         nsims=10000,
         mean=None,
         std=None,
-        noise=None,
-        noise_type="gauss",
+        flux_error=None,
         output_type="value",
         **kwargs,
 ):
@@ -169,12 +169,8 @@ def pdf_fit(
         Desired mean for the simulated light curves. Default is None.
     std : float or None, optional
         Desired standard deviation for the simulated light curves. Default is None.
-    noise : float or None, optional
-        Noise amplitude to add to the simulated light curves. Default is None.
-    noise_type : {'gauss', 'counts'}, optional
-        Type of noise to add to the simulated light curves. Default is 'gauss'.
-    nexp : int, optional
-        Number of Monte Carlo simulations for uncertainty estimation. Default is 50.
+    flux_error : ndarray
+        Observed flux uncertainties to be used to account for measurement errors in the fit. Default is None.
     full_output : bool, optional
         If True, returns the full optimization result. Default is False.
     **kwargs : dict
@@ -201,8 +197,7 @@ def pdf_fit(
             nsims,
             mean,
             std,
-            noise,
-            noise_type,
+            flux_error,
         ),
         **kwargs,
     )
@@ -210,10 +205,72 @@ def pdf_fit(
     if output_type == "parameters":
         return results.x
     elif output_type == "value":
-        return results.func
+        return results.fun
     elif output_type == "full":
         return results
     else:
         raise ValueError(
             f"Accepted values for {output_type} are 'parameters', 'value' or 'full'"
         )
+
+
+def compare_pdf_models(
+        flux,
+        pdf_test,
+        pdf_initial,
+        psd,
+        psd_params,
+        pdf,
+        pdf_params,
+        spacing,
+        nsims=1000,
+        ntests=100,
+        mean=None,
+        std=None,
+        flux_error=None,
+        **kwargs,
+):
+
+    fit_stats = pdf_fit(
+        flux,
+        psd,
+        psd_params,
+        pdf_test,
+        pdf_initial,
+        spacing,
+        nsims=nsims,
+        mean=mean,
+        std=std,
+        flux_error=flux_error,
+        output_type="value",
+        **kwargs,)
+
+    num = []
+    for j in range(ntests):
+        tseries, _ = Emmanoulopoulos_lightcurve_simulator(
+            pdf,
+            psd,
+            len(flux),
+            spacing,
+            pdf_params=pdf_params,
+            psd_params=psd_params,
+            mean=mean,
+            std=std,
+        )
+        fit_test = pdf_fit(
+            tseries,
+            psd,
+            psd_params,
+            pdf_test,
+            pdf_initial,
+            spacing,
+            nsims=nsims,
+            mean=mean,
+            std=std,
+            flux_error=flux_error,
+            output_type="value",
+            **kwargs,)
+        print(fit_test, j)
+        num.append(fit_test - fit_stats)
+
+    return num
