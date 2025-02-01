@@ -171,15 +171,15 @@ def pdf_fit(
         Desired standard deviation for the simulated light curves. Default is None.
     flux_error : ndarray
         Observed flux uncertainties to be used to account for measurement errors in the fit. Default is None.
-    full_output : bool, optional
-        If True, returns the full optimization result. Default is False.
+    output_type : string, optional
+        Change output type. Can be "full", "parameters", "value". Default is "value".
     **kwargs : dict
         Additional keyword arguments for the optimizer.
 
     Returns:
     --------
     results : OptimizeResult or ndarray
-        The optimization result if `full_output` is True, otherwise the best-fit parameters.
+        The optimization result if output_type="full", otherwise the best-fit parameters or function value.
     error : ndarray, optional
         Uncertainties in the estimated parameters (if `nexp > 0`).
     """
