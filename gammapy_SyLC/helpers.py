@@ -27,7 +27,7 @@ def _generate_periodogram(args):
             psd,
             npoints,
             spacing,
-            power_spectrum_params=psd_params,
+            psd_params=psd_params,
             mean=mean,
             std=std,
             noise=noise,
@@ -234,7 +234,7 @@ def interp_pdf(
     with Pool() as pool:
         results = pool.map(_wrap_emm, args)
 
-    hist, bin_edges = np.histogram(np.array(results).flatten(), bins=int(npoints*nsims/100), density=True)
+    hist, bin_edges = np.histogram(np.array(results).flatten(), bins=npoints, density=True)
 
     bin_centers = (bin_edges[:-1] + bin_edges[1:]) / 2
 

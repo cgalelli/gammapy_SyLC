@@ -3,7 +3,7 @@ import numpy as np
 from scipy.optimize import minimize
 
 from .helpers import _pdf_fit_helper, _psd_fit_helper
-from .simulators import Emmanoulopoulos_lightcurve_simulator
+from .simulators import Emmanoulopoulos_lightcurve_simulator, TimmerKonig_lightcurve_simulator
 
 
 def psd_fit(
@@ -214,7 +214,103 @@ def pdf_fit(
         )
 
 
-def compare_pdf_models(
+def test_norm(
+        flux,
+        pdf_test,
+        pdf_initial,
+        psd,
+        psd_params,
+        spacing,
+        nsims=1000,
+        ntests=100,
+        mean=None,
+        std=None,
+        flux_error=None,
+        **kwargs,
+):
+
+    """
+    Evaluates the significance of a fitted probability density function (PDF)
+    by comparing it against a set of normally distributed synthetic light curves
+    generated using the Timmer & König algorithm.
+
+    Parameters
+    ----------
+    flux : array-like
+        The observed light curve flux values.
+    pdf_test : callable
+        The PDF model to be tested.
+    pdf_initial : dict
+        Initial parameter values for the PDF model.
+    psd : callable
+        The power spectral density (PSD) model used for simulation.
+    psd_params : dict
+        Parameters for the PSD model.
+    spacing : `astropy.units.Quantity`
+        Time spacing between data points in the light curve.
+    nsims : int, optional (default=1000)
+        Number of simulated light curves to generate for the fit.
+    ntests : int, optional (default=100)
+        Number of Monte Carlo trials to assess statistical significance.
+    mean : float, optional
+        Mean flux level to be used in simulated light curves.
+    std : float, optional
+        Standard deviation of the flux in simulated light curves.
+    flux_error : array-like, optional
+        Measurement errors associated with the flux values.
+    **kwargs : dict
+        Additional arguments passed to `pdf_fit`.
+
+    Returns
+    -------
+    num : list of float
+        List of differences between the test statistic of the real data and
+        those obtained from synthetic light curves.
+    """
+    fit_stats = pdf_fit(
+        flux,
+        psd,
+        psd_params,
+        pdf_test,
+        pdf_initial,
+        spacing,
+        nsims=nsims,
+        mean=mean,
+        std=std,
+        flux_error=flux_error,
+        output_type="value",
+        **kwargs,)
+
+    num = []
+    for j in range(ntests):
+        tseries, _ = TimmerKonig_lightcurve_simulator(
+            psd,
+            len(flux),
+            spacing,
+            psd_params=psd_params,
+            mean=mean,
+            std=std,
+        )
+        fit_test = pdf_fit(
+            tseries,
+            psd,
+            psd_params,
+            pdf_test,
+            pdf_initial,
+            spacing,
+            nsims=nsims,
+            mean=mean,
+            std=std,
+            flux_error=flux_error,
+            output_type="value",
+            **kwargs,)
+        print(fit_test, j)
+        num.append(fit_test - fit_stats)
+
+    return num
+
+
+def test_models(
         flux,
         pdf_test,
         pdf_initial,
@@ -230,6 +326,48 @@ def compare_pdf_models(
         flux_error=None,
         **kwargs,
 ):
+    """
+    Compares the significance of a fitted probability density function (PDF)
+    using light curves generated with the Emmanoulopoulos algorithm with a
+    different underlying distribution
+
+    Parameters
+    ----------
+    flux : array-like
+        The observed light curve flux values.
+    pdf_test : callable
+        The PDF model to be tested.
+    pdf_initial : dict
+        Initial parameter values for the PDF model.
+    psd : callable
+        The power spectral density (PSD) model used for simulation.
+    psd_params : dict
+        Parameters for the PSD model.
+    pdf : callable
+        The PDF model used for generating synthetic light curves.
+    pdf_params : dict
+        Parameters for the PDF model used in simulations.
+    spacing : `astropy.units.Quantity`
+        Time spacing between data points in the light curve.
+    nsims : int, optional (default=1000)
+        Number of simulated light curves to generate for the fit.
+    ntests : int, optional (default=100)
+        Number of Monte Carlo trials to assess statistical significance.
+    mean : float, optional
+        Mean flux level to be used in simulated light curves.
+    std : float, optional
+        Standard deviation of the flux in simulated light curves.
+    flux_error : array-like, optional
+        Measurement errors associated with the flux values.
+    **kwargs : dict
+        Additional arguments passed to `pdf_fit`.
+
+    Returns
+    -------
+    num : list of float
+        List of differences between the test statistic of the real data and
+        those obtained from synthetic light curves.
+    """
 
     fit_stats = pdf_fit(
         flux,

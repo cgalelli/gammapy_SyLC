@@ -47,7 +47,7 @@ def TimmerKonig_lightcurve_simulator(
         spacing,
         nchunks=10,
         random_state="random-seed",
-        power_spectrum_params=None,
+        psd_params=None,
         mean=0.0,
         std=1.0,
         noise=None,
@@ -68,7 +68,7 @@ def TimmerKonig_lightcurve_simulator(
         Oversampling factor. Default is 10.
     random_state : int or 'random-seed', optional
         Random seed for reproducibility. Default is 'random-seed'.
-    power_spectrum_params : dict, optional
+    psd_params : dict, optional
         Parameters for the power spectrum function. Default is None.
     mean : float, optional
         Desired mean of the light curve. Default is 0.0.
@@ -102,8 +102,8 @@ def TimmerKonig_lightcurve_simulator(
 
     real_frequencies = np.sort(np.abs(frequencies[frequencies < 0]))
 
-    if power_spectrum_params:
-        periodogram = power_spectrum(real_frequencies, **power_spectrum_params)
+    if psd_params:
+        periodogram = power_spectrum(real_frequencies, **psd_params)
     else:
         periodogram = power_spectrum(real_frequencies)
 
@@ -214,7 +214,7 @@ def Emmanoulopoulos_lightcurve_simulator(
         npoints,
         spacing,
         nchunks=nchunks,
-        power_spectrum_params=psd_params,
+        psd_params=psd_params,
         random_state=random_state,
     )
 
