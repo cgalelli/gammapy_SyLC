@@ -36,6 +36,7 @@ def gammaf(x, a):
     pdf_values : array_like
         The computed PDF values for the input `x`.
     """
+    if a <= 0: raise ValueError('Shape parameter must be strictly >0')
     return gamma.pdf(x, a, loc=0, scale=1)
 
 
@@ -55,6 +56,8 @@ def maximal_alpha_stable(x, a):
     pdf_values : array_like
         The computed PDF values for the input `x`.
     """
+    if a <= 0: raise ValueError('Stability parameter must be strictly >0')
+
     return levy_stable.pdf(x, a, 1, loc=0, scale=1)
 
 

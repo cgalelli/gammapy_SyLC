@@ -327,9 +327,8 @@ def _pdf_fit_helper(
         std=std,
     )
 
-    if flux_error:
-        likelihoods = np.prod(np.maximum(pdf_interpolated(np.random.normal(flux[:, None], flux_error[:, None], (len(flux), 10))), 1e-10),
-                  axis=-1) ** (1 / 10)
+    if flux_error is not None:
+        likelihoods = np.prod(np.maximum(pdf_interpolated(np.random.normal(flux[:, None], flux_error[:, None], (len(flux), 10))), 1e-10), axis=-1) ** (1 / 10)
     else:
         likelihoods = np.maximum(pdf_interpolated(flux), 1e-10)
 
