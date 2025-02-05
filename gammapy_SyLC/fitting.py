@@ -278,7 +278,7 @@ def test_norm(
         mean=mean,
         std=std,
         flux_error=flux_error,
-        output_type="value",
+        output_type="full",
         **kwargs,)
 
     num = []
@@ -304,9 +304,9 @@ def test_norm(
             flux_error=flux_error,
             output_type="value",
             **kwargs,)
-        num.append(fit_test - fit_stats)
+        num.append(fit_test - fit_stats.fun)
 
-    return len(num[num<0])
+    return fit_stats, len(num[num>0])/len(num)
 
 
 def test_models(
@@ -379,7 +379,7 @@ def test_models(
         mean=mean,
         std=std,
         flux_error=flux_error,
-        output_type="value",
+        output_type="full",
         **kwargs,)
 
     num = []
@@ -407,6 +407,6 @@ def test_models(
             flux_error=flux_error,
             output_type="value",
             **kwargs,)
-        num.append(fit_test - fit_stats)
+        num.append(fit_test - fit_stats.fun)
 
-    return len(num[num<0])
+    return fit_stats, len(num[num>0])/len(num)
