@@ -304,7 +304,6 @@ def test_norm(
             flux_error=flux_error,
             output_type="value",
             **kwargs,)
-        print(fit_test, j)
         num.append(fit_test - fit_stats)
 
     return num
@@ -408,7 +407,6 @@ def test_models(
             flux_error=flux_error,
             output_type="value",
             **kwargs,)
-        print(fit_test, j)
         num.append(fit_test - fit_stats)
 
     return num
