@@ -306,7 +306,7 @@ def test_norm(
             **kwargs,)
         num.append(fit_test - fit_stats)
 
-    return num
+    return len(num[num<0])
 
 
 def test_models(
@@ -409,4 +409,4 @@ def test_models(
             **kwargs,)
         num.append(fit_test - fit_stats)
 
-    return num
+    return len(num[num<0])
