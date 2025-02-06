@@ -226,6 +226,7 @@ def test_norm(
         mean=None,
         std=None,
         flux_error=None,
+        verbose=False,
         **kwargs,
 ):
 
@@ -258,6 +259,8 @@ def test_norm(
         Standard deviation of the flux in simulated light curves.
     flux_error : array-like, optional
         Measurement errors associated with the flux values.
+    verbose : bool
+        Flag to print partial results if True. Default is False.
     **kwargs : dict
         Additional arguments passed to `pdf_fit`.
 
@@ -305,8 +308,9 @@ def test_norm(
             output_type="value",
             **kwargs,)
         num[j] = (fit_test - fit_stats.fun)
+        if verbose: print(f"Iteration: {j}, partial result: {len(num[num<0])/(j+1)}")
 
-    return fit_stats, len(num[num<=0])/len(num)
+    return fit_stats, len(num[num<0])/nsims
 
 
 def test_models(
