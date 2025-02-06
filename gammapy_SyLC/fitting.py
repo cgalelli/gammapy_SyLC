@@ -281,7 +281,7 @@ def test_norm(
         output_type="full",
         **kwargs,)
 
-    num = []
+    num = np.empty(ntests)
     for j in range(ntests):
         tseries, _ = TimmerKonig_lightcurve_simulator(
             psd,
@@ -304,9 +304,9 @@ def test_norm(
             flux_error=flux_error,
             output_type="value",
             **kwargs,)
-        num.append(fit_test - fit_stats.fun)
+        num[j] = (fit_test - fit_stats.fun)
 
-    return fit_stats, len(num[num>0])/len(num)
+    return fit_stats, len(num[num<=0])/len(num)
 
 
 def test_models(
@@ -382,7 +382,7 @@ def test_models(
         output_type="full",
         **kwargs,)
 
-    num = []
+    num = np.empty(ntests)
     for j in range(ntests):
         tseries, _ = Emmanoulopoulos_lightcurve_simulator(
             pdf,
@@ -407,6 +407,6 @@ def test_models(
             flux_error=flux_error,
             output_type="value",
             **kwargs,)
-        num.append(fit_test - fit_stats.fun)
+        num[j] = (fit_test - fit_stats.fun)
 
-    return fit_stats, len(num[num>0])/len(num)
+    return fit_stats, len(num[num<=0])/len(num)
