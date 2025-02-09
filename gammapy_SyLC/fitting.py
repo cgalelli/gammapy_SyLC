@@ -308,7 +308,7 @@ def test_norm(
             output_type="value",
             **kwargs,)
         num[j] = (fit_test - fit_stats.fun)
-        if verbose: print(f"Iteration: {j}, partial result: {len(num[num<0])/(j+1)}")
+        if verbose: print(f"Iteration: {j}, partial result: {num[j]}")
 
     return fit_stats, len(num[num<0])/ntests
 
@@ -415,6 +415,6 @@ def test_models(
             output_type="value",
             **kwargs,)
         num[j] = (fit_test - fit_stats.fun)
-        if verbose: print(f"Iteration: {j}, partial result: {len(num[num<0])/(j+1)}")
+        if verbose: print(f"Iteration: {j}, partial result: {num[j]}")
 
     return fit_stats, len(num[num<=0])/ntests
