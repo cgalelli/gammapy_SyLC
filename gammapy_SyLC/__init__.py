@@ -2,8 +2,6 @@ from .distributions import (
     lognormal,
     gammaf,
     maximal_alpha_stable,
-    emm_gammalognorm,
-    bpl,
     pl,
 )
 from .simulators import (

@@ -222,14 +222,13 @@ def test_norm(
         psd_params,
         spacing,
         nsims=100,
-        ntests=100,
+        ntests=200,
         mean=None,
         std=None,
         flux_error=None,
         verbose=False,
         **kwargs,
 ):
-
     """
     Evaluates the significance of a fitted probability density function (PDF)
     by comparing it against a set of normally distributed synthetic light curves
@@ -282,7 +281,7 @@ def test_norm(
         std=std,
         flux_error=flux_error,
         output_type="full",
-        **kwargs,)
+        **kwargs, )
 
     num = np.empty(ntests)
     for j in range(ntests):
@@ -306,11 +305,11 @@ def test_norm(
             std=std,
             flux_error=flux_error,
             output_type="value",
-            **kwargs,)
+            **kwargs, )
         num[j] = (fit_test - fit_stats.fun)
         if verbose: print(f"Iteration: {j}, partial result: {num[j]}")
 
-    return fit_stats, len(num[num<0])/ntests
+    return fit_stats, len(num[num < 0]) / ntests
 
 
 def test_models(
@@ -323,7 +322,7 @@ def test_models(
         pdf_params,
         spacing,
         nsims=100,
-        ntests=100,
+        ntests=200,
         mean=None,
         std=None,
         flux_error=None,
@@ -387,7 +386,7 @@ def test_models(
         std=std,
         flux_error=flux_error,
         output_type="full",
-        **kwargs,)
+        **kwargs, )
 
     num = np.empty(ntests)
     for j in range(ntests):
@@ -413,8 +412,8 @@ def test_models(
             std=std,
             flux_error=flux_error,
             output_type="value",
-            **kwargs,)
+            **kwargs, )
         num[j] = (fit_test - fit_stats.fun)
         if verbose: print(f"Iteration: {j}, partial result: {num[j]}")
 
-    return fit_stats, len(num[num<=0])/ntests
+    return fit_stats, len(num[num < 0]) / ntests
