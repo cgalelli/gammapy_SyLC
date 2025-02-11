@@ -283,6 +283,8 @@ def test_norm(
         output_type="full",
         **kwargs, )
 
+    if verbose: print(fit_stats)
+
     num = np.empty(ntests)
     for j in range(ntests):
         tseries, _ = TimmerKonig_lightcurve_simulator(
@@ -387,6 +389,8 @@ def test_models(
         flux_error=flux_error,
         output_type="full",
         **kwargs, )
+
+    if verbose: print(fit_stats)
 
     num = np.empty(ntests)
     for j in range(ntests):

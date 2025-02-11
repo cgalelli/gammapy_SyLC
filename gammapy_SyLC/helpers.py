@@ -234,9 +234,7 @@ def interp_pdf(
     with Pool() as pool:
         results = pool.map(_wrap_emm, args)
 
-    results = np.array(results).flatten()
-    results = results[results>0]
-    hist, bin_edges = np.histogram(results, bins="auto", density=True)
+    hist, bin_edges = np.histogram(np.array(results).flatten(), bins="auto", density=True)
 
     bin_centers = (bin_edges[:-1] + bin_edges[1:]) / 2
 
