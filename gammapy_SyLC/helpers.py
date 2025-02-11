@@ -174,7 +174,7 @@ def interp_pdf(
         pdf_params,
         npoints,
         spacing,
-        nsims=10000,
+        nsims=1000,
         mean=0.0,
         std=1.0,
         noise=None,
@@ -328,9 +328,9 @@ def _pdf_fit_helper(
     )
 
     if flux_error is not None:
-        likelihoods = np.prod(np.maximum(pdf_interpolated(np.random.normal(flux[:, None], flux_error[:, None], (len(flux), 10))), 1e-10), axis=-1) ** (1 / 10)
+        likelihoods = np.prod(np.maximum(pdf_interpolated(np.random.normal(flux[:, None], flux_error[:, None], (len(flux), 10))), 1), axis=-1) ** (1 / 10)
     else:
-        likelihoods = np.maximum(pdf_interpolated(flux), 1e-10)
+        likelihoods = np.maximum(pdf_interpolated(flux), 1)
 
     nll = -np.sum(np.log(likelihoods))
 
