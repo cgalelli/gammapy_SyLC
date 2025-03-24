@@ -216,7 +216,7 @@ def pdf_fit(
         )
 
 
-def test_norm(
+def compare_normal( # noqa
         flux,
         pdf_test,
         pdf_initial,
@@ -311,7 +311,7 @@ def test_norm(
     return fit_stats, len(num[num < 0]) / ntests
 
 
-def test_models(
+def compare_models( # noqa
         flux,
         pdf_test,
         pdf_initial,
