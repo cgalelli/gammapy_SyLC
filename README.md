@@ -4,7 +4,9 @@
 
 It is designed to be **compatible with [Gammapy](https://gammapy.org/)**, although it does not depend on it. The package enables users to perform statistical studies of variability, including PSD reconstruction, PDF fitting, and Monte Carlo-based parameter estimation.  
 
-The paper describing the package and its applications is available on **arXiv**: [https://arxiv.org/abs/2503.14156](https://arxiv.org/abs/2503.14156).  
+A short paper describing the package can be found in the paper.md file.
+
+A longer paper, which also shows an application of the software to AGN lightcurves observed by Fermi-LAT, is available on **arXiv**: [https://arxiv.org/abs/2503.14156](https://arxiv.org/abs/2503.14156).  
 
 ---
 
@@ -146,7 +148,7 @@ If you use gammapy_SyLC in your research, please cite the associated paper:
 
 ## License
 
-This project is licensed under the MIT License. See the LICENSE file for details.
+This project is licensed under the BSD 3-clause license. See the LICENSE file for details.
 
 ## Contact
 
