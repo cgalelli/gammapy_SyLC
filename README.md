@@ -39,7 +39,8 @@ Before using the package, ensure that the following dependencies are installed:
 
 - `numpy`  
 - `scipy`  
-- `astropy`  
+- `astropy`
+- `pytest`
 
 Additionally, some external packages such as `matplotlib`, `pyLCR`, and `gammapy` are **not required** but can be useful for data visualization, retrieving Fermi-LAT light curves, and integrating with **gammapy** workflows.
 
@@ -82,9 +83,9 @@ plt.title("Simulated Light Curve")
 plt.show()
 ```
 
-### Example: PSD and PDF Fitting for a Gamma-Ray Light Curve
+### Example: PSD Fitting for a Gamma-Ray Light Curve
 
-Below is an example workflow using gammapy_SyLC to analyze a Fermi-LAT light curve using the pyLCR package.
+Below is an example workflow using gammapy_SyLC to analyze a Fermi-LAT light curve retrieved with pyLCR.
 
 ```python
 import numpy as np
