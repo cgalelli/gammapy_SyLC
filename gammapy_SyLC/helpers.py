@@ -253,8 +253,8 @@ def _psd_fit_helper(
         pdf_params=None,
         simulator="TK",
         nsims=10000,
-        mean=None,
-        std=None,
+        mean=0.,
+        std=1.,
         noise=None,
         noise_type="gauss",
 ):
@@ -302,8 +302,8 @@ def _pdf_fit_helper(
         psd_params,
         pdf,
         nsims=500,
-        mean=None,
-        std=None,
+        mean=0.,
+        std=1.,
         flux_error=None,
 ):
     pdf_params_keys = list(inspect.signature(pdf).parameters.keys())

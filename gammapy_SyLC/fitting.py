@@ -139,8 +139,6 @@ def pdf_fit(
         pdf_initial,
         spacing,
         nsims=10000,
-        mean=None,
-        std=None,
         flux_error=None,
         output_type="value",
         **kwargs,
@@ -184,6 +182,10 @@ def pdf_fit(
         Uncertainties in the estimated parameters (if `nexp > 0`).
     """
     kwargs.setdefault("method", "Powell")
+
+    mean = flux.mean()
+    std = flux.std()
+
     results = minimize(
         _pdf_fit_helper,
         list(pdf_initial.values()),
@@ -223,8 +225,6 @@ def test_norm(
         spacing,
         nsims=100,
         ntests=200,
-        mean=None,
-        std=None,
         flux_error=None,
         verbose=False,
         **kwargs,
@@ -277,13 +277,12 @@ def test_norm(
         pdf_initial,
         spacing,
         nsims=nsims*5,
-        mean=mean,
-        std=std,
         flux_error=flux_error,
         output_type="full",
         **kwargs, )
 
     if verbose: print(fit_stats)
+
 
     num = np.empty(ntests)
     for j in range(ntests):
@@ -292,8 +291,8 @@ def test_norm(
             len(flux),
             spacing,
             psd_params=psd_params,
-            mean=mean,
-            std=std,
+            mean=flux.mean(),
+            std=flux.std(),
         )
         fit_test = pdf_fit(
             tseries,
@@ -303,8 +302,6 @@ def test_norm(
             pdf_initial,
             spacing,
             nsims=nsims,
-            mean=mean,
-            std=std,
             flux_error=flux_error,
             output_type="value",
             **kwargs, )
@@ -325,8 +322,6 @@ def test_models(
         spacing,
         nsims=100,
         ntests=200,
-        mean=None,
-        std=None,
         flux_error=None,
         verbose=False,
         **kwargs,
@@ -384,8 +379,6 @@ def test_models(
         pdf_initial,
         spacing,
         nsims=nsims*5,
-        mean=mean,
-        std=std,
         flux_error=flux_error,
         output_type="full",
         **kwargs, )
@@ -401,8 +394,8 @@ def test_models(
             spacing,
             pdf_params=pdf_params,
             psd_params=psd_params,
-            mean=mean,
-            std=std,
+            mean=flux.mean(),
+            std=flux.std(),
         )
         fit_test = pdf_fit(
             tseries,
@@ -412,8 +405,6 @@ def test_models(
             pdf_initial,
             spacing,
             nsims=nsims,
-            mean=mean,
-            std=std,
             flux_error=flux_error,
             output_type="value",
             **kwargs, )
