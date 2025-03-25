@@ -24,9 +24,9 @@ Time-domain astrophysics plays a critical role in understanding the underlying p
 
 # Statement of Need
 
-Understanding the variability of active galactic nuclei (AGNs) is central to high-energy astrophysics. AGNs exhibit complex, stochastic light curves that encode information about accretion dynamics, relativistic jet activity, and particle acceleration processes. Variability studies allow us to probe the physical conditions in regions that are otherwise spatially unresolved, thereby offering unique insights into the underlying physics of these extreme objects.
+Understanding the variability of AGNs is central to high-energy astrophysics. AGNs exhibit complex, stochastic light curves that encode information about accretion dynamics, relativistic jet activity, and particle acceleration processes. Variability studies allow us to probe the physical conditions in regions that are otherwise spatially unresolved, thereby offering unique insights into the underlying physics of these extreme objects.
 
-Despite the importance of such studies, current approaches are often fragmented—researchers typically write custom code for simulating light curves, fitting power spectral densities (PSDs), and analyzing probability density functions (PDFs) of flux amplitudes. This fragmentation leads to redundant effort and potential inconsistencies in methodologies, making it difficult to compare results across different studies. There is a clear need for a standardized, open-source tool that integrates these processes into a single, user-friendly package.
+Despite the importance of such studies, current approaches are often fragmented—researchers typically write custom code for simulating light curves, fitting PSDs, and analyzing PDFs of flux amplitudes. This fragmentation leads to redundant effort and potential inconsistencies in methodologies, making it difficult to compare results across different studies. There is a clear need for a standardized, open-source tool that integrates these processes into a single, user-friendly package.
 
 `gammapy_SyLC` addresses these scientific needs by providing a unified framework for:
 - **Simulating realistic light curves:** Utilizing both the Timmer & König and Emmanoulopoulos algorithms, the package can reproduce the temporal variability (PSD) and the statistical flux distribution (PDF) observed in AGNs.
@@ -41,7 +41,7 @@ This standardized tool is designed to be accessible to all researchers in the ga
 
 ### Timmer & König Algorithm
 
-The Timmer & König (TK) algorithm [@timmer1995] generates synthetic light curves by:
+The Timmer & König (TK) algorithm [@Timmer1995] generates synthetic light curves by:
 1. Creating Fourier components that match a specified PSD.
 2. Randomizing the phases.
 3. Performing an inverse Fourier transform.
@@ -50,7 +50,7 @@ This method ensures that the simulated light curve follows the target PSD, but i
 
 ### Emmanoulopoulos Algorithm
 
-The Emmanoulopoulos (EMM) algorithm [@emmanoulopoulos2013] extends the TK method by matching both a specified PSD and a target flux amplitude distribution. In `gammapy_SyLC`, the EMM simulation is highly optimized and can generate a synthetic light curve in less than a millisecond for a typical 1000-point light curve. Its iterative process adjusts the flux values to reproduce a non-Gaussian distribution (e.g., lognormal), making it especially useful for modeling AGN variability.
+The Emmanoulopoulos (EMM) algorithm [@Emmanoulopoulos2013] extends the TK method by matching both a specified PSD and a target flux amplitude distribution. In `gammapy_SyLC`, the EMM simulation is highly optimized and can generate a synthetic light curve in less than a millisecond for a typical 1000-point light curve. Its iterative process adjusts the flux values to reproduce a non-Gaussian distribution (e.g., lognormal), making it especially useful for modeling AGN variability.
 
 ### Optimization Strategies
 
