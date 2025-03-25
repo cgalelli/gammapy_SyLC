@@ -60,7 +60,8 @@ The simulation routines incorporate several computational strategies:
 - **Efficient Iterative Correction:** The EMM algorithm typically converges within 10–20 iterations, yielding runtime of less than 1 ms per simulation for typical light curves.
 
 *Figure 1: Comparison of TK and EMM simulated light curves, periodograms, and flux distributions.*  
-![Figure 1](figure1.png)
+
+<img src="figure1.png" width="1000">
 
 ## 2. Statistical Fitting Procedures
 
@@ -74,7 +75,8 @@ PSD fitting is used to characterize stochastic variability. The PSD follows a po
 For a typical 1000-point light curve, PSD fitting takes approximately 2–5 minutes, and if error estimation is required, the total runtime may extend to about 10 minutes.
 
 *Figure 2: Observed periodogram with statistical envelopes from simulated data for the Fermi-LAT observations of the AGN BL-LAC.*  
-![Figure 2](figure2.png)
+
+<img src="figure2.png" width="500">
 
 ### Probability Density Function (PDF) Fitting
 
@@ -86,7 +88,7 @@ PDF fitting characterizes the flux amplitude distribution. The procedure in `gam
 Typical PDF fitting runs take about 2–5 minutes, while running full hypothesis tests (e.g., 100 tests) can require around 20 minutes.
 
 *Figure 3: Histogram of observed flux values with overlaid best-fit PDF models for the Fermi-LAT observations of the AGN Mkn-421.*  
-![Figure 3](figure3.png)
+<img src="figure3.png" width="500">
 
 ## 3. Hypothesis Testing and Model Selection
 
