@@ -120,11 +120,9 @@ A typical workflow using `gammapy_SyLC` for a variability study might follow the
 6. **Scientific Interpretation:**  
    Combine the PSD and PDF fitting results to infer the physical processes driving the variability, such as turbulence in the accretion disk or fluctuations in jet emission.
 
-# Conclusion and Future Work
+## Note
 
-`gammapy_SyLC` offers a robust, efficient framework for simulating and fitting light curves in high-energy astrophysics. By integrating advanced simulation techniques with rigorous statistical fitting and hypothesis testing, the package enables researchers to extract meaningful constraints on AGN variability. Future developments will focus on extending PSD models to include composite structures (e.g., a red-noise component with an additive white noise plateau), refining PDF fitting via Bayesian techniques, and enhancing integration with the `gammapy` ecosystem for streamlined workflows. This standardized, open tool is intended to serve the gamma-ray time-domain community by reducing redundant custom code and promoting reproducible variability studies.
+An example of an application of the software can be found [on arxiv](https://arxiv.org/abs/2503.14156).
 
-# Acknowledgments
-
-The author thanks Catherine Boisson for her guidance and support. Special thanks go to the developers of Gammapy and the CTAO AGN group for their invaluable feedback and insights.
+# References
 
