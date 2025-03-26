@@ -59,7 +59,7 @@ The simulation routines incorporate several computational strategies:
 - **Custom Noise Handling:** Users can introduce Gaussian or Poissonian noise to mimic observational uncertainties.
 - **Efficient Iterative Correction:** The EMM algorithm typically converges within 10–20 iterations, yielding runtime of less than 1 ms per simulation for typical light curves.
 
-![Figure](figure1.png){ width=2000px }
+![Figure](figure1.png){ width=1300px }
 
 Figure 1: Comparison of TK and EMM simulated light curves, periodograms, and flux distributions.
 
