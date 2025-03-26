@@ -20,7 +20,7 @@ bibliography: paper.bib
 
 # Summary
 
-Time-domain astrophysics plays a critical role in understanding the underlying physical processes of variable sources. In high-energy astrophysics, active galactic nuclei (AGNs) exhibit complex stochastic light curves that provide insights into accretion dynamics, jet physics, and emission mechanisms. `gammapy_SyLC` is an open-source Python package that offers a unified framework for simulating and fitting light curves in gamma-ray astronomy. It implements advanced algorithms for generating synthetic variability based on power spectral densities (PSDs) and probability density functions (PDFs) and provides Monte Carlo-based methods for robust statistical model fitting.
+Time-domain astrophysics plays a critical role in understanding the underlying physical processes of variable sources. In high-energy astrophysics, active galactic nuclei (AGNs) exhibit complex stochastic light curves that provide insights into accretion dynamics, jet physics, and emission mechanisms. `gammapy_SyLC` is an open-source Python package that offers a unified framework for simulating and fitting light curves in gamma-ray astronomy. It implements advanced algorithms for generating synthetic variability based on power spectral densities (PSDs) and probability density functions (PDFs) and provides Monte Carlo-based methods for robust statistical model fitting. `gammapy_SyLC` is not directly dependent on `gammapy` [@Donath2023], but is thought as a companion package focused on some aspects of time-domain high-energy astrophysics, with possible stronger integration.
 
 # Statement of Need
 
@@ -59,9 +59,7 @@ The simulation routines incorporate several computational strategies:
 - **Custom Noise Handling:** Users can introduce Gaussian or Poissonian noise to mimic observational uncertainties.
 - **Efficient Iterative Correction:** The EMM algorithm typically converges within 10–20 iterations, yielding runtime of less than 1 ms per simulation for typical light curves.
 
-*Figure 1: Comparison of TK and EMM simulated light curves, periodograms, and flux distributions.*  
-
-<img src="figure1.png" width="1000">
+![Figure 1: Comparison of TK and EMM simulated light curves, periodograms, and flux distributions.](figure1.png)
 
 ## 2. Statistical Fitting Procedures
 
