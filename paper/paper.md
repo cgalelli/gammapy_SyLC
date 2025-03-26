@@ -59,7 +59,9 @@ The simulation routines incorporate several computational strategies:
 - **Custom Noise Handling:** Users can introduce Gaussian or Poissonian noise to mimic observational uncertainties.
 - **Efficient Iterative Correction:** The EMM algorithm typically converges within 10–20 iterations, yielding runtime of less than 1 ms per simulation for typical light curves.
 
-![Figure 1: Comparison of TK and EMM simulated light curves, periodograms, and flux distributions.](figure1.png)
+![Figure](figure1.png){ width=1000px }
+
+Figure 1: Comparison of TK and EMM simulated light curves, periodograms, and flux distributions.
 
 ## 2. Statistical Fitting Procedures
 
@@ -70,11 +72,11 @@ PSD fitting is used to characterize stochastic variability. The PSD follows a po
 2. Constructs statistical envelopes (e.g., 68% and 95% quantiles) from the ensemble periodograms.
 3. Optimizes the best-fit spectral index using a likelihood-based approach with `scipy.optimize.minimize`.
 
-For a typical 1000-point light curve, PSD fitting takes approximately 2–5 minutes, and if error estimation is required, the total runtime may extend to about 10 minutes.
+For a typical 1000-point light curve, PSD fitting takes approximately 2–5 minutes, and if error estimation is required, the total runtime may extend to about 10 minutes.  
 
-*Figure 2: Observed periodogram with statistical envelopes from simulated data for the Fermi-LAT observations of the AGN BL-LAC.*  
+![Figure](figure2.png){ width=500px }
 
-<img src="figure2.png" width="500">
+Figure 2: Observed periodogram with statistical envelopes from simulated data for the Fermi-LAT observations of the AGN BL-LAC.
 
 ### Probability Density Function (PDF) Fitting
 
@@ -85,8 +87,9 @@ PDF fitting characterizes the flux amplitude distribution. The procedure in `gam
 
 Typical PDF fitting runs take about 2–5 minutes, while running full hypothesis tests (e.g., 100 tests) can require around 20 minutes.
 
-*Figure 3: Histogram of observed flux values with overlaid best-fit PDF models for the Fermi-LAT observations of the AGN Mkn-421.*  
-<img src="figure3.png" width="500">
+![Figure](figure3.png){ width=500px }
+
+Figure 3: Histogram of observed flux values with overlaid best-fit PDF models for the Fermi-LAT observations of the AGN Mkn-421.
 
 ## 3. Hypothesis Testing and Model Selection
 
