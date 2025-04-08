@@ -11,8 +11,11 @@ authors:
   - name: Claudio Galelli
     affiliation: "1"
     orcid: [0000-0002-7372-9703]
+
+affiliations:
   - index: 1
     name: LUX, Observatoire de Paris, Université PSL, Sorbonne Université, CNRS, 92190 Meudon, France
+    
 date: 25 March 2025
 bibliography: paper.bib
 ---
