@@ -13,7 +13,7 @@ authors:
     orcid: [0000-0002-7372-9703]
   - index: 1
     name: LUX, Observatoire de Paris, Université PSL, Sorbonne Université, CNRS, 92190 Meudon, France
-date: 2025-03-25
+date: 25 March 2025
 bibliography: paper.bib
 ---
 
