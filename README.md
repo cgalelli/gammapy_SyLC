@@ -40,7 +40,6 @@ Before using the package, ensure that the following dependencies are installed:
 - `numpy`  
 - `scipy`  
 - `astropy`
-- `pytest`
 
 Additionally, some external packages such as `matplotlib`, `pyLCR`, and `gammapy` are **not required** but can be useful for data visualization, retrieving Fermi-LAT light curves, and integrating with **gammapy** workflows.
 
