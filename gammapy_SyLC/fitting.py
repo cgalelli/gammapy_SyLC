@@ -7,7 +7,9 @@ from .simulators import Emmanoulopoulos_lightcurve_simulator, TimmerKonig_lightc
 
 
 def psd_fit(
-        pgram,
+        frequencies,
+        power,
+        npoints,
         psd,
         psd_initial,
         spacing,
@@ -33,6 +35,8 @@ def psd_fit(
         Observed periodogram values representing the data.
     psd : callable
         Target power spectral density (PSD) model function.
+    npoints : int
+        Number of points in the simulated light curve.      
     psd_initial : dict
         Initial guesses for the PSD model parameters.
     spacing : astropy.units.Quantity
@@ -77,8 +81,9 @@ def psd_fit(
         _psd_fit_helper,
         list(psd_initial.values()),
         args=(
-            pgram[1:],
-            len(pgram[1:]) * 2,
+            frequencies,
+            power,
+            npoints,
             spacing,
             psd,
             pdf,
@@ -97,13 +102,13 @@ def psd_fit(
 
     if nexp > 0:
         results_list = np.empty((nexp,) + results.x.shape)
-        frequencies = np.fft.fftfreq(len(pgram), spacing.value)
-        real_frequencies = np.sort(np.abs(frequencies[frequencies < 0]))
-        test_pgram = psd(real_frequencies, **psd_params)
+        test_pgram = psd(frequencies, **psd_params)
 
         for _ in range(nexp):
             results_err = psd_fit(
+                frequencies,
                 test_pgram,
+                npoints,
                 psd,
                 psd_params,
                 spacing,

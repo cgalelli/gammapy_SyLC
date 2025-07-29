@@ -1,9 +1,8 @@
 import inspect
 import numpy as np
 from multiprocessing import Pool
-from scipy.signal import periodogram
+from astropy.timeseries import LombScargle
 from scipy.interpolate import PchipInterpolator
-
 from .simulators import TimmerKonig_lightcurve_simulator, Emmanoulopoulos_lightcurve_simulator
 
 
@@ -23,7 +22,7 @@ def _generate_periodogram(args):
         noise_type,
     ) = args
     if simulator == "TK":
-        tseries, _ = TimmerKonig_lightcurve_simulator(
+        tseries, taxis = TimmerKonig_lightcurve_simulator(
             psd,
             npoints,
             spacing,
@@ -34,7 +33,7 @@ def _generate_periodogram(args):
             noise_type=noise_type,
         )
     elif simulator == "EMM":
-        tseries, _ = Emmanoulopoulos_lightcurve_simulator(
+        tseries, taxis = Emmanoulopoulos_lightcurve_simulator(
             pdf,
             psd,
             npoints,
@@ -48,9 +47,10 @@ def _generate_periodogram(args):
         )
     else:
         raise ValueError("Invalid simulator. Use 'TK' or 'EMM'.")
-
-    freqs, pg = periodogram(tseries, 1 / spacing.value)
-    return pg
+    
+    ls = LombScargle(taxis, tseries)
+    freqs, pg = ls.autopower(nyquist_factor=1, samples_per_peak=1, normalization="psd")
+    return freqs, pg
 
 
 def _wrap_emm(args):
@@ -160,11 +160,12 @@ def lightcurve_psd_envelope(
     with Pool() as pool:
         results = pool.map(_generate_periodogram, args)
 
-    envelopes_psd = np.array(results)[..., 1: npoints // 2 + 1]
+    all_freqs, all_pgs = zip(*results)
 
-    freqs = np.fft.fftfreq(npoints_ext, spacing_ext.value)[1: npoints // 2 + 1]
-
-    return envelopes_psd, freqs
+    envelopes_psd = np.array(all_pgs)[..., : npoints // 2 + 1]
+    freqs = all_freqs[0][: npoints // 2 + 1]
+    
+    return envelopes_psd/(oversample), freqs
 
 
 def interp_pdf(
@@ -245,7 +246,8 @@ def interp_pdf(
 
 def _psd_fit_helper(
         psd_params_list,
-        pgram,
+        frequencies,
+        power,
         npoints,
         spacing,
         psd,
@@ -282,10 +284,10 @@ def _psd_fit_helper(
         noise_type=noise_type,
     )
 
-    if len(envelopes[0]) != len(pgram):
+    if len(envelopes[0]) != len(power):
         raise ValueError("required length is different than data length!")
 
-    obs = (pgram - np.nanmean(envelopes, axis=0)) ** 2 / envelopes.std(axis=0) ** 2
+    obs = (power - np.nanmean(envelopes, axis=0)) ** 2 / envelopes.std(axis=0) ** 2
     sim = (envelopes - np.nanmean(envelopes, axis=0)) ** 2 / envelopes.std(axis=0) ** 2
     sumobs = np.sum(obs)
     sumsim = np.sum(sim, axis=-1)

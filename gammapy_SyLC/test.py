@@ -2,7 +2,7 @@ import numpy as np
 import astropy.units as u
 import pytest
 from scipy.optimize import OptimizeResult
-from scipy.signal import periodogram
+from astropy.timeseries import LombScargle
 from gammapy_SyLC import (
     TimmerKonig_lightcurve_simulator,
     Emmanoulopoulos_lightcurve_simulator,
@@ -68,7 +68,7 @@ def test_psd_fit():
     mean = 7.e-7
     std = 5.e-7
 
-    flux, _ = TimmerKonig_lightcurve_simulator(
+    flux, times = TimmerKonig_lightcurve_simulator(
         psd,
         npoints,
         spacing,
@@ -77,9 +77,11 @@ def test_psd_fit():
         std=std,
     )
 
-    fq, pgram = periodogram(flux, fs=1 / 7)
+    ls = LombScargle(times, flux)
+    freq, power = ls.autopower(nyquist_factor=1, samples_per_peak=1, normalization="psd")
     index_fit, index_err = psd_fit(
-        pgram,
+        freq,
+        power,
         psd,
         psd_params,
         spacing,
