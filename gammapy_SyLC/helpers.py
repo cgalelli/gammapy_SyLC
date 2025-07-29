@@ -19,7 +19,6 @@ def _generate_periodogram(args):
         mean,
         std,
         noise,
-        noise_type,
     ) = args
     if simulator == "TK":
         tseries, taxis = TimmerKonig_lightcurve_simulator(
@@ -29,8 +28,6 @@ def _generate_periodogram(args):
             psd_params=psd_params,
             mean=mean,
             std=std,
-            noise=noise,
-            noise_type=noise_type,
         )
     elif simulator == "EMM":
         tseries, taxis = Emmanoulopoulos_lightcurve_simulator(
@@ -42,13 +39,11 @@ def _generate_periodogram(args):
             psd_params=psd_params,
             mean=mean,
             std=std,
-            noise=noise,
-            noise_type=noise_type,
         )
     else:
         raise ValueError("Invalid simulator. Use 'TK' or 'EMM'.")
     
-    ls = LombScargle(taxis, tseries)
+    ls = LombScargle(taxis, tseries, noise)
     freqs, pg = ls.autopower(nyquist_factor=1, samples_per_peak=1, normalization="psd")
     return freqs, pg
 
@@ -65,7 +60,6 @@ def _wrap_emm(args):
         mean,
         std,
         noise,
-        noise_type,
     ) = args
     tseries, _ = Emmanoulopoulos_lightcurve_simulator(
         pdf,
@@ -77,7 +71,6 @@ def _wrap_emm(args):
         mean=mean,
         std=std,
         noise=noise,
-        noise_type=noise_type,
     )
     return tseries
 
@@ -95,7 +88,6 @@ def lightcurve_psd_envelope(
         std=1.0,
         oversample=10,
         noise=None,
-        noise_type="gauss",
 ):
     """
     Generate PSD envelopes for light curves simulated using Timmer & Koenig (TK)
@@ -126,9 +118,7 @@ def lightcurve_psd_envelope(
     oversample : int, optional
         Oversampling factor for the light curves. Default is 10.
     noise : float or None, optional
-        Noise amplitude to add to the light curve. Default is None.
-    noise_type : {'gauss', 'counts'}, optional
-        Type of noise to add. Default is 'gauss'.
+        Noise (relative) amplitude to add to the light curve. Default is None.
 
     Returns:
     --------
@@ -152,7 +142,6 @@ def lightcurve_psd_envelope(
             mean,
             std,
             noise,
-            noise_type,
         )
         for _ in range(nsims)
     ]
@@ -179,7 +168,6 @@ def interp_pdf(
         mean=0.0,
         std=1.0,
         noise=None,
-        noise_type="gauss",
 ):
     """
     Generate an interpolated probability density function (PDF) for flux amplitudes
@@ -206,9 +194,7 @@ def interp_pdf(
     std : float, optional
         Desired standard deviation of the simulated light curves. Default is 1.0.
     noise : float or None, optional
-        Noise amplitude to add to the simulated light curves. Default is None.
-    noise_type : {'gauss', 'counts'}, optional
-        Type of noise to add to the simulated light curves. Default is 'gauss'.
+        Noise (relative) amplitude to add to the simulated light curves. Default is None.
 
     Returns:
     --------
@@ -227,7 +213,6 @@ def interp_pdf(
             mean,
             std,
             noise,
-            noise_type,
         )
         for _ in range(nsims)
     ]
@@ -258,7 +243,6 @@ def _psd_fit_helper(
         mean=0.,
         std=1.,
         noise=None,
-        noise_type="gauss",
 ):
     psd_params_keys = list(inspect.signature(psd).parameters.keys())
 
@@ -281,7 +265,6 @@ def _psd_fit_helper(
         mean=mean,
         std=std,
         noise=noise,
-        noise_type=noise_type,
     )
 
     if len(envelopes[0]) != len(power):

@@ -20,7 +20,6 @@ def psd_fit(
         mean=None,
         std=None,
         noise=None,
-        noise_type="gauss",
         nexp=50,
         full_output=False,
         **kwargs,
@@ -55,9 +54,7 @@ def psd_fit(
     std : float or None, optional
         Desired standard deviation for the simulated light curves. Default is None.
     noise : float or None, optional
-        Noise amplitude to add to the simulated light curves. Default is None.
-    noise_type : {'gauss', 'counts'}, optional
-        Type of noise to add to the simulated light curves. Default is 'gauss'.
+        Noise (relative) amplitude to add to the simulated light curves. Default is None.
     nexp : int, optional
         Number of Monte Carlo simulations for uncertainty estimation. Default is 50.
     full_output : bool, optional
@@ -93,7 +90,6 @@ def psd_fit(
             mean,
             std,
             noise,
-            noise_type,
         ),
         **kwargs,
     )
