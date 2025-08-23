@@ -50,8 +50,6 @@ def TimmerKonig_lightcurve_simulator(
         psd_params=None,
         mean=0.0,
         std=1.0,
-        noise=None,
-        noise_type="gauss",
 ):
     """
     Simulate a light curve using the Timmer & Koenig method.
@@ -74,10 +72,6 @@ def TimmerKonig_lightcurve_simulator(
         Desired mean of the light curve. Default is 0.0.
     std : float, optional
         Desired standard deviation of the light curve. Default is 1.0.
-    noise : float or None, optional
-        Noise amplitude to add to the light curve. Default is None.
-    noise_type : {'gauss', 'counts'}, optional
-        Type of noise to add. Default is 'gauss'.
 
     Returns:
     --------
@@ -139,20 +133,86 @@ def TimmerKonig_lightcurve_simulator(
 
     time_series = (time_series - time_series.mean()) / time_series.std()
 
-    if noise:
-        if noise_type == "gauss":
-            noise_series = np.random.normal(loc=0, scale=noise, size=npoints)
-        elif noise_type == "counts":
-            noise_series = np.random.poisson(lam=noise, size=npoints)
-        else:
-            raise ValueError("Accepted values for 'noise_type' are 'gauss' or 'counts'")
-        time_series += noise_series
-
     time_series = time_series * std + mean
 
     time_axis = np.linspace(0, npoints * spacing.value, npoints) * spacing.unit
 
     return time_series, time_axis
+
+def ModifiedTimmerKonig_lightcurve_simulator(
+        power_spectrum,
+        obs_times,
+        psd_params=None,
+        nchunks=10,
+        random_state="random-seed",
+        mean=0.0,
+        std=1.0,
+):
+    """
+    Simulates a light curve at specific uneven time points using direct summation.
+
+    Parameters
+    ----------
+    power_spectrum : callable
+        A function that takes frequency (in 1/days) as input and returns the power
+        spectral density (PSD) at that frequency.
+    obs_times : array-like
+        An array of observation times (in days) at which the light curve should be simulated.
+    psd_params : dict, optional
+        A dictionary of parameters to pass to the power_spectrum function.
+    nchunks : int, optional
+        The oversampling factor for the frequency grid. Default is 10.
+    random_state : int or 'random-seed', optional
+        Random seed for reproducibility. Default is 'random-seed'.
+    mean : float, optional
+        The desired mean of the simulated light curve. Default is 0.0.
+    std : float, optional
+        The desired standard deviation of the simulated light curve. Default is 1.0.
+
+    Returns
+    -------
+    time_series : array-like
+        The simulated light curve values at the specified observation times.
+    obs_times : array-like
+        The input observation times.
+    """
+    random_state = _random_state(random_state)
+
+    # 1. Define a frequency grid
+    # The number of frequencies is increased by the oversampling factor
+    time_span = obs_times.max() - obs_times.min()
+
+    n_freqs = (len(obs_times) // 2) * nchunks
+    min_freq = 1.0 / time_span
+
+    # Define max_freq based on the median sampling, the "effective Nyquist"
+    avg_spacing = np.mean(np.diff(obs_times))
+    max_freq = 1.0 / (2.0 * avg_spacing)
+
+    # Create the frequency array
+    real_frequencies = np.linspace(min_freq, max_freq, n_freqs).value
+
+    # 2. Compute the PSD values at these frequencies
+    if psd_params:
+        periodogram = power_spectrum(real_frequencies, **psd_params)
+    else:
+        periodogram = power_spectrum(real_frequencies)
+    
+    # 3. Generate random Fourier coefficients
+    real_part =random_state.normal(0, 1, len(real_frequencies)) * np.sqrt(0.5 * periodogram* (real_frequencies[1] - real_frequencies[0]))
+    imaginary_part = random_state.normal(0, 1, len(real_frequencies)) * np.sqrt(0.5 * periodogram* (real_frequencies[1] - real_frequencies[0]))
+
+    # 4. Direct summation to compute the time series at the desired observation times
+    time_series = np.zeros(len(obs_times))
+    for i in range(len(real_frequencies)):
+        time_series += real_part[i] * np.cos(2 * np.pi * real_frequencies[i] * obs_times.value)
+        time_series += imaginary_part[i] * np.sin(2 * np.pi * real_frequencies[i] * obs_times.value)
+
+    # 5. Normalize the time series to have the desired mean and std
+    time_series = (time_series - time_series.mean()) / time_series.std()
+    time_series = time_series * std + mean
+    
+    return time_series, obs_times
 
 
 def Emmanoulopoulos_lightcurve_simulator(
@@ -167,8 +227,6 @@ def Emmanoulopoulos_lightcurve_simulator(
         nchunks=10,
         mean=0.0,
         std=1.0,
-        noise=None,
-        noise_type="gauss",
 ):
     """
     Simulate a light curve using the Emmanoulopoulos method.
@@ -197,10 +255,6 @@ def Emmanoulopoulos_lightcurve_simulator(
         Desired mean of the light curve. Default is 0.0.
     std : float, optional
         Desired standard deviation of the light curve. Default is 1.0.
-    noise : float or None, optional
-        Noise amplitude to add to the light curve. Default is None.
-    noise_type : {'gauss', 'poisson'}, optional
-        Type of noise to add. Default is 'gauss'.
 
     Returns:
     --------
@@ -245,17 +299,6 @@ def Emmanoulopoulos_lightcurve_simulator(
         lc_sim = lc_adj
 
     lc_sim = (lc_sim - lc_sim.mean()) / lc_sim.std()
-
-    if noise:
-        if noise_type == "gauss":
-            noise_series = np.random.normal(loc=0, scale=noise, size=npoints)
-        elif noise_type == "poisson":
-            noise_series = np.random.poisson(lam=noise, size=npoints)
-        else:
-            raise ValueError(
-                "Accepted values for 'noise_type' are 'gauss' or 'poisson'"
-            )
-        lc_sim += noise_series
 
     lc_sim = lc_sim * std + mean
 

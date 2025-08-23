@@ -6,6 +6,7 @@ from .distributions import (
 )
 from .simulators import (
     TimmerKonig_lightcurve_simulator,
+    ModifiedTimmerKonig_lightcurve_simulator,
     Emmanoulopoulos_lightcurve_simulator,
 )
 from .fitting import (

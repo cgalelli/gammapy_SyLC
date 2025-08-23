@@ -18,7 +18,7 @@ def _generate_periodogram(args):
         psd_params,
         mean,
         std,
-        noise,
+        flux_error,
     ) = args
     if simulator == "TK":
         tseries, taxis = TimmerKonig_lightcurve_simulator(
@@ -43,7 +43,7 @@ def _generate_periodogram(args):
     else:
         raise ValueError("Invalid simulator. Use 'TK' or 'EMM'.")
     
-    ls = LombScargle(taxis, tseries, noise)
+    ls = LombScargle(taxis, tseries, flux_error)
     freqs, pg = ls.autopower(nyquist_factor=1, samples_per_peak=1, normalization="psd")
     return freqs, pg
 
@@ -59,7 +59,6 @@ def _wrap_emm(args):
         psd_params,
         mean,
         std,
-        noise,
     ) = args
     tseries, _ = Emmanoulopoulos_lightcurve_simulator(
         pdf,
@@ -70,7 +69,6 @@ def _wrap_emm(args):
         psd_params=psd_params,
         mean=mean,
         std=std,
-        noise=noise,
     )
     return tseries
 
@@ -87,7 +85,7 @@ def lightcurve_psd_envelope(
         mean=0.0,
         std=1.0,
         oversample=10,
-        noise=None,
+        flux_error=None,
 ):
     """
     Generate PSD envelopes for light curves simulated using Timmer & Koenig (TK)
@@ -141,7 +139,7 @@ def lightcurve_psd_envelope(
             psd_params,
             mean,
             std,
-            noise,
+            flux_error,
         )
         for _ in range(nsims)
     ]
@@ -167,7 +165,6 @@ def interp_pdf(
         nsims=1000,
         mean=0.0,
         std=1.0,
-        noise=None,
 ):
     """
     Generate an interpolated probability density function (PDF) for flux amplitudes
@@ -193,8 +190,6 @@ def interp_pdf(
         Desired mean of the simulated light curves. Default is 0.0.
     std : float, optional
         Desired standard deviation of the simulated light curves. Default is 1.0.
-    noise : float or None, optional
-        Noise (relative) amplitude to add to the simulated light curves. Default is None.
 
     Returns:
     --------
@@ -212,7 +207,6 @@ def interp_pdf(
             psd_params,
             mean,
             std,
-            noise,
         )
         for _ in range(nsims)
     ]
