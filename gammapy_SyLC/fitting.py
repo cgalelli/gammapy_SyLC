@@ -9,17 +9,16 @@ from .simulators import Emmanoulopoulos_lightcurve_simulator, TimmerKonig_lightc
 def psd_fit(
         frequencies,
         power,
-        npoints,
+        obs_times,
         psd,
         psd_initial,
-        spacing,
         pdf=None,
         pdf_params=None,
         simulator="TK",
         nsims=10000,
         mean=None,
         std=None,
-        noise=None,
+        flux_error=None,
         nexp=50,
         full_output=False,
         **kwargs,
@@ -34,12 +33,10 @@ def psd_fit(
         Observed periodogram values representing the data.
     psd : callable
         Target power spectral density (PSD) model function.
-    npoints : int
-        Number of points in the simulated light curve.      
+    obs_times : astropy.units.Quantity
+        Observation times for the light curve.
     psd_initial : dict
         Initial guesses for the PSD model parameters.
-    spacing : astropy.units.Quantity
-        Time spacing for the light curve.
     pdf : callable or None, optional
         Target probability density function (PDF) for flux amplitudes, required for
         Emmanoulopoulos (EMM) simulations. Default is None.
@@ -80,8 +77,7 @@ def psd_fit(
         args=(
             frequencies,
             power,
-            npoints,
-            spacing,
+            obs_times,
             psd,
             pdf,
             pdf_params,
@@ -89,7 +85,7 @@ def psd_fit(
             nsims,
             mean,
             std,
-            noise,
+            flux_error,
         ),
         **kwargs,
     )
@@ -104,10 +100,9 @@ def psd_fit(
             results_err = psd_fit(
                 frequencies,
                 test_pgram,
-                npoints,
+                obs_times,
                 psd,
                 psd_params,
-                spacing,
                 pdf=pdf,
                 pdf_params=pdf_params,
                 simulator=simulator,
@@ -138,7 +133,7 @@ def pdf_fit(
         psd_params,
         pdf,
         pdf_initial,
-        spacing,
+        obs_times,
         nsims=10000,
         flux_error=None,
         output_type="value",
@@ -152,6 +147,8 @@ def pdf_fit(
     -----------
     flux : ndarray
         Observed flux values representing the data.
+    obs_times : astropy.units.Quantity
+        Observation times for the light curve.
     psd : callable
         Target power spectral density (PSD) function.
     psd_params : dict
@@ -160,8 +157,6 @@ def pdf_fit(
         Target probability density function (PDF) for flux amplitudes.
     pdf_initial : dict
         Initial guesses for the PDF parameters.
-    spacing : astropy.units.Quantity
-        Time spacing for the light curve.
     nsims : int, optional
         Number of Monte Carlo simulations for the fitting procedure. Default is 10000.
     mean : float or None, optional
@@ -192,8 +187,7 @@ def pdf_fit(
         list(pdf_initial.values()),
         args=(
             flux,
-            len(flux),
-            spacing,
+            obs_times,
             psd,
             psd_params,
             pdf,
@@ -219,11 +213,11 @@ def pdf_fit(
 
 def compare_normal( # noqa
         flux,
+        obs_times,
         pdf_test,
         pdf_initial,
         psd,
         psd_params,
-        spacing,
         nsims=100,
         ntests=200,
         flux_error=None,
@@ -239,6 +233,8 @@ def compare_normal( # noqa
     ----------
     flux : array-like
         The observed light curve flux values.
+    obs_times : astropy.units.Quantity
+        Observation times for the light curve.
     pdf_test : callable
         The PDF model to be tested.
     pdf_initial : dict
@@ -247,8 +243,6 @@ def compare_normal( # noqa
         The power spectral density (PSD) model used for simulation.
     psd_params : dict
         Parameters for the PSD model.
-    spacing : `astropy.units.Quantity`
-        Time spacing between data points in the light curve.
     nsims : int, optional (default=1000)
         Number of simulated light curves to generate for the fit.
     ntests : int, optional (default=100)
@@ -272,11 +266,11 @@ def compare_normal( # noqa
     """
     fit_stats = pdf_fit(
         flux,
+        obs_times,
         psd,
         psd_params,
         pdf_test,
         pdf_initial,
-        spacing,
         nsims=nsims*5,
         flux_error=flux_error,
         output_type="full",
@@ -289,19 +283,18 @@ def compare_normal( # noqa
     for j in range(ntests):
         tseries, _ = TimmerKonig_lightcurve_simulator(
             psd,
-            len(flux),
-            spacing,
+            obs_times,
             psd_params=psd_params,
             mean=flux.mean(),
             std=flux.std(),
         )
         fit_test = pdf_fit(
             tseries,
+            obs_times,
             psd,
             psd_params,
             pdf_test,
             pdf_initial,
-            spacing,
             nsims=nsims,
             flux_error=flux_error,
             output_type="value",
@@ -314,13 +307,13 @@ def compare_normal( # noqa
 
 def compare_models( # noqa
         flux,
+        obs_times,
         pdf_test,
         pdf_initial,
         psd,
         psd_params,
         pdf,
         pdf_params,
-        spacing,
         nsims=100,
         ntests=200,
         flux_error=None,
@@ -336,6 +329,8 @@ def compare_models( # noqa
     ----------
     flux : array-like
         The observed light curve flux values.
+    obs_times : astropy.units.Quantity
+        Observation times for the light curve.
     pdf_test : callable
         The PDF model to be tested.
     pdf_initial : dict
@@ -348,8 +343,6 @@ def compare_models( # noqa
         The PDF model used for generating synthetic light curves.
     pdf_params : dict
         Parameters for the PDF model used in simulations.
-    spacing : `astropy.units.Quantity`
-        Time spacing between data points in the light curve.
     nsims : int, optional (default=1000)
         Number of simulated light curves to generate for the fit.
     ntests : int, optional (default=100)
@@ -374,11 +367,11 @@ def compare_models( # noqa
 
     fit_stats = pdf_fit(
         flux,
+        obs_times,
         psd,
         psd_params,
         pdf_test,
         pdf_initial,
-        spacing,
         nsims=nsims*5,
         flux_error=flux_error,
         output_type="full",
@@ -391,8 +384,7 @@ def compare_models( # noqa
         tseries, _ = Emmanoulopoulos_lightcurve_simulator(
             pdf,
             psd,
-            len(flux),
-            spacing,
+            obs_times,
             pdf_params=pdf_params,
             psd_params=psd_params,
             mean=flux.mean(),
@@ -400,11 +392,11 @@ def compare_models( # noqa
         )
         fit_test = pdf_fit(
             tseries,
+            obs_times,
             psd,
             psd_params,
             pdf_test,
             pdf_initial,
-            spacing,
             nsims=nsims,
             flux_error=flux_error,
             output_type="value",

@@ -65,12 +65,11 @@ pdf_model = lognormal
 # Set parameters for the simulation
 psd_params = {"index": -1.2}
 pdf_params = {"s": 0.5}
-npoints = 1000
-spacing = 7 * u.d
+obs_times = np.linspace(0, 7000, 1000) * u.d
 
 # Generate synthetic light curve
 tseries, times = Emmanoulopoulos_lightcurve_simulator(
-    pdf_model, psd_model, npoints, spacing,
+    pdf_model, psd_model, obs_times,
     pdf_params=pdf_params, psd_params=psd_params,
     mean=1.0, std=0.5
 )
@@ -91,7 +90,7 @@ Below is an example workflow using gammapy_SyLC to analyze a Fermi-LAT light cur
 import numpy as np
 import matplotlib.pyplot as plt
 import astropy.units as u
-from scipy.signal import periodogram
+from astropy.timeseries import LombScargle
 from gammapy_SyLC import *
 import pyLCR
 
@@ -106,12 +105,12 @@ ls = LombScargle(times, flux, flux_err)
 freq, power = ls.autopower(nyquist_factor=1, samples_per_peak=1, normalization="psd")
 
 # Fit the PSD with a power-law model
-psd_index = psd_fit(freq, power, pl, {"index": -1}, 7 * u.d, mean=flux.mean(), std=flux.std(), nsims=1000, nexp=-1)
+psd_index = psd_fit(freq, power, times, pl, {"index": -1}, mean=flux.mean(), std=flux.std(), nsims=1000, nexp=-1)
 print(f"Best-fit PSD index: {psd_index}")
 
 # Generate PSD envelope for visualization
 envelopes, freqs = lightcurve_psd_envelope(
-    pl, len(flux), 7*u.d, psd_params={"index": psd_index},
+    pl, times, psd_params={"index": psd_index},
     simulator="TK", nsims=1000, mean=flux.mean(), std=flux.std(),
 )
 qmin2, qmin1, qmax1, qmax2 = np.quantile(envelopes, [0.025, 0.16, 0.84, 0.975], axis=0)

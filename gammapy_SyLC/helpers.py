@@ -12,8 +12,7 @@ def _generate_periodogram(args):
         simulator,
         pdf,
         psd,
-        npoints,
-        spacing,
+        obs_times,
         pdf_params,
         psd_params,
         mean,
@@ -23,8 +22,7 @@ def _generate_periodogram(args):
     if simulator == "TK":
         tseries, taxis = TimmerKonig_lightcurve_simulator(
             psd,
-            npoints,
-            spacing,
+            obs_times,
             psd_params=psd_params,
             mean=mean,
             std=std,
@@ -33,8 +31,7 @@ def _generate_periodogram(args):
         tseries, taxis = Emmanoulopoulos_lightcurve_simulator(
             pdf,
             psd,
-            npoints,
-            spacing,
+            obs_times,
             pdf_params=pdf_params,
             psd_params=psd_params,
             mean=mean,
@@ -53,8 +50,7 @@ def _wrap_emm(args):
     (
         pdf,
         psd,
-        npoints,
-        spacing,
+        obs_times,
         pdf_params,
         psd_params,
         mean,
@@ -63,8 +59,7 @@ def _wrap_emm(args):
     tseries, _ = Emmanoulopoulos_lightcurve_simulator(
         pdf,
         psd,
-        npoints,
-        spacing,
+        obs_times,
         pdf_params=pdf_params,
         psd_params=psd_params,
         mean=mean,
@@ -75,8 +70,7 @@ def _wrap_emm(args):
 
 def lightcurve_psd_envelope(
         psd,
-        npoints,
-        spacing,
+        obs_times,
         pdf=None,
         nsims=10000,
         pdf_params=None,
@@ -84,7 +78,6 @@ def lightcurve_psd_envelope(
         simulator="TK",
         mean=0.0,
         std=1.0,
-        oversample=10,
         flux_error=None,
 ):
     """
@@ -95,10 +88,8 @@ def lightcurve_psd_envelope(
     -----------
     psd : callable
         Target power spectral density function.
-    npoints : int
-        Number of points in the simulated light curve.
-    spacing : astropy.units.Quantity
-        Time spacing between successive points.
+    obs_times : astropy.units.Quantity
+        Observation times. Needs to be evenly spaced.
     pdf : callable or None, optional
         Probability density function for flux amplitudes. Required if `simulator="EMM"`.
     nsims : int, optional
@@ -125,16 +116,13 @@ def lightcurve_psd_envelope(
     freqs : ndarray
         Frequencies corresponding to the PSD values.
     """
-    npoints_ext = npoints * oversample
-    spacing_ext = spacing / oversample
 
     args = [
         (
             simulator,
             pdf,
             psd,
-            npoints_ext,
-            spacing_ext,
+            obs_times,
             pdf_params,
             psd_params,
             mean,
@@ -149,10 +137,10 @@ def lightcurve_psd_envelope(
 
     all_freqs, all_pgs = zip(*results)
 
-    envelopes_psd = np.array(all_pgs)[..., : npoints // 2 + 1]
-    freqs = all_freqs[0][: npoints // 2 + 1]
+    envelopes_psd = np.array(all_pgs)
+    freqs = all_freqs[0]
     
-    return envelopes_psd/(oversample), freqs
+    return envelopes_psd, freqs
 
 
 def interp_pdf(
@@ -160,8 +148,7 @@ def interp_pdf(
         pdf,
         psd_params,
         pdf_params,
-        npoints,
-        spacing,
+        obs_times,
         nsims=1000,
         mean=0.0,
         std=1.0,
@@ -180,10 +167,8 @@ def interp_pdf(
         Parameters for the PSD function.
     pdf_params : dict
         Parameters for the PDF function.
-    npoints : int
-        Number of points in each simulated light curve.
-    spacing : astropy.units.Quantity
-        Time spacing between successive points in the simulated light curve.
+    obs_times : astropy.units.Quantity
+        Observation times. Needs to be evenly spaced.
     nsims : int, optional
         Number of Monte Carlo simulations to generate. Default is 10000.
     mean : float, optional
@@ -201,8 +186,7 @@ def interp_pdf(
         (
             pdf,
             psd,
-            npoints,
-            spacing,
+            obs_times,
             pdf_params,
             psd_params,
             mean,
@@ -227,8 +211,7 @@ def _psd_fit_helper(
         psd_params_list,
         frequencies,
         power,
-        npoints,
-        spacing,
+        obs_times,
         psd,
         pdf=None,
         pdf_params=None,
@@ -236,7 +219,7 @@ def _psd_fit_helper(
         nsims=10000,
         mean=0.,
         std=1.,
-        noise=None,
+        flux_error=None,
 ):
     psd_params_keys = list(inspect.signature(psd).parameters.keys())
 
@@ -249,8 +232,7 @@ def _psd_fit_helper(
 
     envelopes, freqs = lightcurve_psd_envelope(
         psd,
-        npoints,
-        spacing,
+        obs_times,
         pdf=pdf,
         pdf_params=pdf_params,
         psd_params=psd_params,
@@ -258,7 +240,7 @@ def _psd_fit_helper(
         nsims=nsims,
         mean=mean,
         std=std,
-        noise=noise,
+        flux_error=flux_error,
     )
 
     if len(envelopes[0]) != len(power):
@@ -275,8 +257,7 @@ def _psd_fit_helper(
 def _pdf_fit_helper(
         pdf_params_list,
         flux,
-        npoints,
-        spacing,
+        obs_times,
         psd,
         psd_params,
         pdf,
@@ -299,8 +280,7 @@ def _pdf_fit_helper(
         pdf,
         psd_params,
         pdf_params,
-        npoints,
-        spacing,
+        obs_times,
         nsims=nsims,
         mean=mean,
         std=std,

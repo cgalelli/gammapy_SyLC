@@ -43,8 +43,7 @@ def _random_state(init):
 
 def TimmerKonig_lightcurve_simulator(
         power_spectrum,
-        npoints,
-        spacing,
+        obs_times,
         nchunks=10,
         random_state="random-seed",
         psd_params=None,
@@ -58,10 +57,8 @@ def TimmerKonig_lightcurve_simulator(
     -----------
     power_spectrum : callable
         The target power spectrum as a function of frequency.
-    npoints : int
-        Number of points in the simulated light curve.
-    spacing : astropy.units.Quantity
-        Time spacing between successive points.
+    obs_times : astropy.units.Quantity
+        Observation times. Needs to be evenly spaced; for unevenly spaced observation times, use ModifiedTimmerKonig_lightcurve_simulator().
     nchunks : int, optional
         Oversampling factor. Default is 10.
     random_state : int or 'random-seed', optional
@@ -84,6 +81,9 @@ def TimmerKonig_lightcurve_simulator(
         raise ValueError(
             "The power spectrum has to be provided as a callable function."
         )
+
+    npoints = len(obs_times)
+    spacing = np.diff(obs_times)[0]
 
     if not isinstance(npoints * nchunks, int):
         raise TypeError("npoints and nchunks must be integers")
@@ -135,9 +135,7 @@ def TimmerKonig_lightcurve_simulator(
 
     time_series = time_series * std + mean
 
-    time_axis = np.linspace(0, npoints * spacing.value, npoints) * spacing.unit
-
-    return time_series, time_axis
+    return time_series, obs_times
 
 def ModifiedTimmerKonig_lightcurve_simulator(
         power_spectrum,
@@ -218,8 +216,7 @@ def ModifiedTimmerKonig_lightcurve_simulator(
 def Emmanoulopoulos_lightcurve_simulator(
         pdf,
         psd,
-        npoints,
-        spacing,
+        obs_times,
         pdf_params=None,
         psd_params=None,
         random_state="random-seed",
@@ -237,10 +234,8 @@ def Emmanoulopoulos_lightcurve_simulator(
         Target probability density function for flux amplitudes.
     psd : callable
         Target power spectral density function.
-    npoints : int
-        Number of points in the simulated light curve.
-    spacing : astropy.units.Quantity
-        Time spacing between successive points.
+    obs_times : astropy.units.Quantity
+        Observation times. Needs to be evenly spaced.
     pdf_params : dict, optional
         Parameters for the PDF function. Default is None.
     psd_params : dict, optional
@@ -263,10 +258,12 @@ def Emmanoulopoulos_lightcurve_simulator(
     taxis : array_like
         Time values corresponding to the light curve.
     """
+
+    npoints = len(obs_times)
+
     lc_norm, taxis = TimmerKonig_lightcurve_simulator(
         psd,
-        npoints,
-        spacing,
+        obs_times,
         nchunks=nchunks,
         psd_params=psd_params,
         random_state=random_state,
