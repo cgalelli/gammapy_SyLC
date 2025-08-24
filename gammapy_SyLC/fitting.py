@@ -42,8 +42,8 @@ def psd_fit(
         Emmanoulopoulos (EMM) simulations. Default is None.
     pdf_params : dict or None, optional
         Parameters for the PDF function. Default is None.
-    simulator : {'TK', 'EMM'}, optional
-        Simulator to use ('TK' for Timmer & Koenig or 'EMM' for Emmanoulopoulos). Default is 'TK'.
+    simulator : {'TK', 'MTK', 'EMM'}, optional
+        Simulator to use ('TK' for Timmer & Koenig or 'MTK' for the modified Timmer & Koenig or 'EMM' for Emmanoulopoulos). Default is 'TK'.
     nsims : int, optional
         Number of simulations for envelope generation. Default is 10000.
     mean : float or None, optional

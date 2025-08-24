@@ -3,7 +3,7 @@ import numpy as np
 from multiprocessing import Pool
 from astropy.timeseries import LombScargle
 from scipy.interpolate import PchipInterpolator
-from .simulators import TimmerKonig_lightcurve_simulator, Emmanoulopoulos_lightcurve_simulator
+from .simulators import TimmerKonig_lightcurve_simulator, ModifiedTimmerKonig_lightcurve_simulator, Emmanoulopoulos_lightcurve_simulator
 
 
 def _generate_periodogram(args):
@@ -19,8 +19,20 @@ def _generate_periodogram(args):
         std,
         flux_error,
     ) = args
+
+    if not np.allclose(np.diff(obs_times), np.diff(obs_times)[0], rtol=1e-5) and simulator != "MTK":
+        raise ValueError("Using an unevenly sampled 'obs_times' with a simulator that does not support it. Use simulator='MTK' for uneven observation times.")
+
     if simulator == "TK":
         tseries, taxis = TimmerKonig_lightcurve_simulator(
+            psd,
+            obs_times,
+            psd_params=psd_params,
+            mean=mean,
+            std=std,
+        )
+    elif simulator == "MTK":
+        tseries, taxis = ModifiedTimmerKonig_lightcurve_simulator(
             psd,
             obs_times,
             psd_params=psd_params,
@@ -38,7 +50,7 @@ def _generate_periodogram(args):
             std=std,
         )
     else:
-        raise ValueError("Invalid simulator. Use 'TK' or 'EMM'.")
+        raise ValueError("Invalid simulator. Use 'TK', 'MTK' or 'EMM'.")
     
     ls = LombScargle(taxis, tseries, flux_error)
     freqs, pg = ls.autopower(nyquist_factor=1, samples_per_peak=1, normalization="psd")
@@ -89,7 +101,7 @@ def lightcurve_psd_envelope(
     psd : callable
         Target power spectral density function.
     obs_times : astropy.units.Quantity
-        Observation times. Needs to be evenly spaced.
+        Observation times. Needs to be evenly spaced if simulator `simulator="EMM"` or '"TK"'.
     pdf : callable or None, optional
         Probability density function for flux amplitudes. Required if `simulator="EMM"`.
     nsims : int, optional
@@ -98,8 +110,8 @@ def lightcurve_psd_envelope(
         Parameters for the PDF function. Default is None.
     psd_params : dict, optional
         Parameters for the PSD function. Default is None.
-    simulator : {'TK', 'EMM'}, optional
-        Simulator to use ('TK' for Timmer & Koenig or 'EMM' for Emmanoulopoulos). Default is 'TK'.
+    simulator : {'TK', 'MTK', 'EMM'}, optional
+        Simulator to use ('TK' for Timmer & Koenig or 'MTK' for the modified Timmer & Koenig or 'EMM' for Emmanoulopoulos). Default is 'TK'.
     mean : float, optional
         Desired mean of the light curve. Default is 0.0.
     std : float, optional
