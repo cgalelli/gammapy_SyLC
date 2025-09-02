@@ -15,4 +15,7 @@ from .fitting import (
     compare_normal,
     compare_models,
 )
+
+from .multiwavelength import calculate_zdcf
+
 from .helpers import lightcurve_psd_envelope, interp_pdf
