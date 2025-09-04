@@ -183,7 +183,7 @@ def ModifiedTimmerKonig_lightcurve_simulator(
     n_freqs = (len(obs_times) // 2) * nchunks
     min_freq = 1.0 / time_span
 
-    # Define max_freq based on the median sampling, the "effective Nyquist"
+    # Define max_freq based on the mean sampling, the "effective Nyquist"
     avg_spacing = np.mean(np.diff(obs_times))
     max_freq = 1.0 / (2.0 * avg_spacing)
 
@@ -197,14 +197,13 @@ def ModifiedTimmerKonig_lightcurve_simulator(
         periodogram = power_spectrum(real_frequencies)
     
     # 3. Generate random Fourier coefficients
-    real_part =random_state.normal(0, 1, len(real_frequencies)) * np.sqrt(0.5 * periodogram* (real_frequencies[1] - real_frequencies[0]))
-    imaginary_part = random_state.normal(0, 1, len(real_frequencies)) * np.sqrt(0.5 * periodogram* (real_frequencies[1] - real_frequencies[0]))
+    f_coeffs = np.sqrt(0.5 * periodogram* (real_frequencies[1] - real_frequencies[0]))*(random_state.normal(0, 1, len(real_frequencies))-1j*random_state.normal(0, 1, len(real_frequencies)))
 
     # 4. Direct summation to compute the time series at the desired observation times
     time_series = np.zeros(len(obs_times))
     for i in range(len(real_frequencies)):
-        time_series += real_part[i] * np.cos(2 * np.pi * real_frequencies[i] * obs_times.value)
-        time_series += imaginary_part[i] * np.sin(2 * np.pi * real_frequencies[i] * obs_times.value)
+        time_series += (f_coeffs[i] * np.exp(2j * np.pi * real_frequencies[i] * obs_times.value)).real
+
 
     # 5. Normalize the time series to have the desired mean and std
     time_series = (time_series - time_series.mean()) / time_series.std()
