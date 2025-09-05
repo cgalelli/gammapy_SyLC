@@ -96,7 +96,7 @@ import pyLCR
 
 # Retrieve a gamma-ray light curve from the Fermi-LAT Light Curve Repository
 data = pyLCR.getLightCurve('4FGL J2202.7+4216', cadence='weekly', flux_type='photon', index_type='fixed', ts_min=4)
-times = data.time
+times = data.met_detections
 flux = data.flux
 flux_err = data.flux_error
 
