@@ -219,6 +219,7 @@ def Emmanoulopoulos_lightcurve_simulator(
         pdf_params=None,
         psd_params=None,
         random_state="random-seed",
+        base_sim = "MTK",
         imax=1000,
         nchunks=10,
         mean=0.0,
@@ -241,6 +242,8 @@ def Emmanoulopoulos_lightcurve_simulator(
         Parameters for the PSD function. Default is None.
     random_state : int or 'random-seed', optional
         Random seed for reproducibility. Default is 'random-seed'.
+    base_sim : "MTK" or "TK". Default is "MTK".
+        Underlying simulator for base time series.
     imax : int, optional
         Maximum number of iterations for convergence. Default is 1000.
     nchunks : int, optional
@@ -260,13 +263,24 @@ def Emmanoulopoulos_lightcurve_simulator(
 
     npoints = len(obs_times)
 
-    lc_norm, taxis = TimmerKonig_lightcurve_simulator(
-        psd,
-        obs_times,
-        nchunks=nchunks,
-        psd_params=psd_params,
-        random_state=random_state,
-    )
+    if base_sim == "MTK":
+        lc_norm, taxis = ModifiedTimmerKonig_lightcurve_simulator(
+            psd,
+            obs_times,
+            nchunks=nchunks,
+            psd_params=psd_params,
+            random_state=random_state,
+        )
+    elif base_sim == "TK":
+        lc_norm, taxis = TimmerKonig_lightcurve_simulator(
+            psd,
+            obs_times,
+            nchunks=nchunks,
+            psd_params=psd_params,
+            random_state=random_state,
+        )
+    else:
+        raise ValueError("Allowed values for base_sim are 'MTK' or 'TK'")
 
     random_state = _random_state(random_state)
 
