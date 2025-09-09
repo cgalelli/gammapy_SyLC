@@ -187,7 +187,6 @@ def simulate_lightcurve_from_reference(
         
     return lc_sim, obs_times
 
-# --- Helper function for multiprocessing ---
 def _mwl_psd_worker(args):
     """
     Worker function to simulate one lightcurve and compute its periodogram.
@@ -209,7 +208,6 @@ def _mwl_psd_worker(args):
     
     return freqs, power
 
-# --- Main User Function ---
 def mwl_psd_envelope(
     t1, f1, e1,
     t2, f2, e2,
