@@ -29,12 +29,14 @@ def psd_fit(
 
     Parameters:
     -----------
-    pgram : ndarray
+    frequencies : ndarray
+        Frequencies of sampling of the periodogram.
+    power : ndarray
         Observed periodogram values representing the data.
-    psd : callable
-        Target power spectral density (PSD) model function.
     obs_times : astropy.units.Quantity
         Observation times for the light curve.
+    psd : callable
+        Target power spectral density (PSD) model function.
     psd_initial : dict
         Initial guesses for the PSD model parameters.
     pdf : callable or None, optional
