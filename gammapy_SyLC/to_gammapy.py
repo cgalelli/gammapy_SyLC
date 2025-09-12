@@ -181,18 +181,21 @@ def from_flux_points(flux_points):
     """
     Extracts numpy arrays for time, flux, and error from a `FluxPoints` object.
     """
+    try:
+        from gammapy.estimators import FluxPoints
+    except ImportError as e:
+        raise RuntimeError(
+            "The `gammapy` package is required for this function. "
+            "Please install to use `simulate_flux_points`."
+        ) from e
+
     if not isinstance(flux_points, FluxPoints):
         raise TypeError("Input must be a gammapy.estimators.FluxPoints object.")
 
-    times = flux_points.geom.axes["time"].time_edges
-    
-    if 'norm' in flux_points.colnames:
-        flux = flux_points.norm.data.flatten()
-        flux_err = flux_points.norm_err.data.flatten()
-    elif 'dnde' in flux_points.colnames:
-        flux = flux_points.dnde.data.flatten()
-        flux_err = flux_points.dnde_err.data.flatten()
-    else:
-        raise ValueError("FluxPoints object must contain 'norm' or 'dnde' columns.")
+    times = flux_points.geom.axes["time"].time_mid - flux_points.geom.axes["time"].reference_time 
+    time = times.value * u.d
 
-    return times, flux, flux_err
+    flux = flux_points.norm.data.flatten()
+    flux_err = flux_points.norm_err.data.flatten()
+    
+    return time, flux, flux_err
