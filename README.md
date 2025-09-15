@@ -2,7 +2,7 @@
 
 **gammapy_SyLC** is a Python package designed for time-domain analysis of high-energy astrophysical sources. It provides tools for simulating and fitting light curves, with a focus on Active Galactic Nuclei (AGN) variability. The package implements the **Timmer & König** and **Emmanoulopoulos** algorithms for light curve simulation, as well as **power spectral density (PSD) fitting** and **probability density function (PDF) fitting** functionalities.  
 
-It is designed to be **compatible with [Gammapy](https://gammapy.org/)**, although it does not depend on it. The package enables users to perform statistical studies of variability, including PSD reconstruction, PDF fitting, and Monte Carlo-based parameter estimation.  
+It is designed to be **compatible with [Gammapy](https://gammapy.org/)**, although the dependence is optional, providing interfaces to work with gammapy data objects like FluxPoints. The package enables users to perform statistical studies of variability, including PSD reconstruction, PDF fitting, and Monte Carlo-based parameter estimation.
 
 A short paper describing the package can be found in the paper.md file.
 
@@ -15,7 +15,7 @@ A longer paper, which also shows an application of the software to AGN lightcurv
 - **Light Curve Simulation**  
   - Generate synthetic light curves using the **Timmer & König** and **Emmanoulopoulos** algorithms  
   - Simulate light curves with a given **PSD** and **flux amplitude distribution**  
-  - Introduce **noise** into simulations  
+  - Directly create **gammapy.FluxPoints** objects from the synthetic models. 
 
 - **Variability Model Fitting**  
   - **Power Spectral Density (PSD) fitting** using Monte Carlo-based statistical envelopes  
