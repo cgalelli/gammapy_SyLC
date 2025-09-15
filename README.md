@@ -127,8 +127,70 @@ plt.legend()
 plt.show()
 ```
 
----
+### Example: Generative Simulation and PSD Fitting with Gammapy
+Below is a complete workflow demonstrating how to simulate a realistic FluxPoints object using the gammapy interface and then fit its underlying Power Spectral Density.
 
+```python
+import matplotlib.pyplot as plt
+import astropy.units as u
+from astropy.time import Time
+from astropy.coordinates import SkyCoord
+from gammapy.data import observatory_locations
+from gammapy.irf import load_irf_dict_from_file
+from gammapy.maps import MapAxis
+from gammapy.modeling.models import PowerLawSpectralModel
+from gammapy_SyLC import simulate_flux_points, psd_fit, from_flux_points, pl, lognormal
+
+# 1. Setup Simulation Parameters
+psd_model = pl
+pdf_model = lognormal
+psd_params = {"index": -1.4}
+pdf_params = {"s": 0.5}
+
+# Observation and instrument setup (simplified)
+obs_starts = Time("2020-01-01") + np.arange(100) * 1 * u.day
+livetimes = np.full(100, 0.95) * u.day
+irfs = load_irf_dict_from_file("$GAMMAPY_DATA/cta-caldb/Prod5-South-20deg-AverageAz-14MSTs37SSTs.180000s-v0.1.fits.gz")
+energy_axis = MapAxis.from_energy_bounds(energy_min=0.1 * u.TeV, energy_max=100 * u.TeV, nbin=1)
+pointing_position = SkyCoord(107.65, -40.17, unit="deg", frame="galactic")
+spectral_model = PowerLawSpectralModel(amplitude=1e-10 * u.TeV**-1 * u.cm**-2 * u.s**-1)
+location = observatory_locations["cta_south"]
+
+# 2. Generate a realistic `FluxPoints` light curve
+lc_simu = simulate_flux_points(
+    psd_model=psd_model, 
+    psd_params=psd_params,
+    obs_starts=obs_starts, 
+    livetimes=livetimes,
+    energy_axis=energy_axis,
+    pointing_position=pointing_position,
+    spectral_model=spectral_model,
+    irfs=irfs,
+    location=location,
+    pdf_model=pdf_model,
+    pdf_params=pdf_params,
+    simulator="EMM",
+)
+
+# 3. Fit the PSD of the simulated light curve
+# The psd_fit function can take the FluxPoints object directly as input
+index_fit, index_err = psd_fit(
+    lightcurve=lc_simu,
+    psd=psd_model,
+    psd_initial={"index": -1.0}, # Initial guess for the fit
+    simulator="MTK", # Use MTK for unevenly sampled data
+    nsims=100, # Use more sims for a real case
+    nexp=10,   # Use more experiments for a real case
+)
+
+print(f"Injected PSD index: {psd_params['index']}")
+print(f"Best-fit PSD index: {index_fit[0]:.2f} +/- {index_err[0]:.2f}")
+
+# Plot the resulting light curve
+lc_simu.plot()
+plt.show()
+```
+---
 
 ## Citation
 
@@ -155,3 +217,6 @@ This project is licensed under the BSD 3-clause license. See the LICENSE file fo
 ## Contact
 
 For questions, please contact: Claudio Galelli – claudio.galelli@mi.infn.it
+
+
+ gammapy_SyLCgammapy_SyLC is a Python package designed for time-domain analysis of high-energy astrophysical sources. It provides tools for simulating and fitting light curves, with a focus on Active Galactic Nuclei (AGN) variability. The package implements the Timmer & König and Emmanoulopoulos algorithms for light curve simulation, as well as power spectral density (PSD) fitting and probability density function (PDF) fitting functionalities.It is designed to be compatible with Gammapy, providing seamless interfaces to work with gammapy data objects like FluxPoints. The package enables users to perform statistical studies of variability, including PSD reconstruction, PDF fitting, and Monte Carlo-based parameter estimation.A short paper describing the package can be found in the paper.md file.A longer paper, which also shows an application of the software to AGN lightcurves observed by Fermi-LAT, is available on arXiv: https://arxiv.org/abs/2503.14156.FeaturesLight Curve Simulation - Generate synthetic light curves using the Timmer & König and Emmanoulopoulos algorithms.Simulate light curves for both evenly and unevenly sampled observation times.Simulate light curves with a given PSD and flux amplitude distribution.Variability Model Fitting - Power Spectral Density (PSD) fitting using Monte Carlo-based statistical envelopes.Flux amplitude distribution fitting with lognormal, gamma, and alpha-stable models.Tools for comparing alternative statistical models.Gammapy IntegrationGenerative Simulation: Directly simulate realistic gammapy.estimators.FluxPoints objects, including instrumental effects and Poisson noise, from underlying PSD and PDF models.Direct Input: Use FluxPoints objects as direct inputs for fitting functions, streamlining the analysis workflow.Helper Utilities: Easily convert between SyLC numpy arrays and gammapy objects.InstallationTo install gammapy_SyLC, first clone the repository and install the package using pip.
