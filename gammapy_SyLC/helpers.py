@@ -13,6 +13,7 @@ def _generate_periodogram(args):
         pdf,
         psd,
         obs_times,
+        frequencies,
         pdf_params,
         psd_params,
         mean,
@@ -51,10 +52,14 @@ def _generate_periodogram(args):
         )
     else:
         raise ValueError("Invalid simulator. Use 'TK', 'MTK' or 'EMM'.")
-    
+
     ls = LombScargle(taxis, tseries, flux_error)
-    freqs, pg = ls.autopower(nyquist_factor=1, samples_per_peak=1, normalization="psd")
-    return freqs, pg
+    if frequencies is not None:
+        power = ls.power(frequencies, normalization="psd")
+    else:
+        frequencies, power = ls.autopower(nyquist_factor=1, samples_per_peak=1, normalization="psd")
+
+    return frequencies, power
 
 
 def _wrap_emm(args):
@@ -83,6 +88,7 @@ def _wrap_emm(args):
 def lightcurve_psd_envelope(
         psd,
         obs_times,
+        frequencies=None,
         pdf=None,
         nsims=10000,
         pdf_params=None,
@@ -135,6 +141,7 @@ def lightcurve_psd_envelope(
             pdf,
             psd,
             obs_times,
+            frequencies,
             pdf_params,
             psd_params,
             mean,
@@ -143,6 +150,7 @@ def lightcurve_psd_envelope(
         )
         for _ in range(nsims)
     ]
+    
 
     with Pool() as pool:
         results = pool.map(_generate_periodogram, args)
@@ -245,6 +253,7 @@ def _psd_fit_helper(
     envelopes, freqs = lightcurve_psd_envelope(
         psd,
         obs_times,
+        frequencies=frequencies, 
         pdf=pdf,
         pdf_params=pdf_params,
         psd_params=psd_params,
