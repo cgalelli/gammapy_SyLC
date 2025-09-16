@@ -1,8 +1,6 @@
 import numpy as np
-from scipy.optimize import minimize
-from multiprocessing import Pool
-from astropy.timeseries import LombScargle
-from .simulators import ModifiedTimmerKonig_lightcurve_simulator, _random_state
+from astropy.timeseries import LombScargleMultiband
+from .simulators import ModifiedTimmerKonig_lightcurve_simulator, TimmerKonig_lightcurve_simulator, Emmanoulopoulos_lightcurve_simulator
 
 def calculate_zdcf(t1, f1, e1, t2, f2, e2, lag_min, lag_max, lag_bin_width, min_pairs_per_bin=11):
     """
@@ -103,131 +101,64 @@ def calculate_zdcf(t1, f1, e1, t2, f2, e2, lag_min, lag_max, lag_bin_width, min_
     return lag_bins, dcf, dcf_pos_err, dcf_neg_err, n_pairs_per_bin
 
 
-def simulate_lightcurve_from_reference(
-    t_ref, f_ref, e_ref,
-    obs_times,
-    mean_sim, std_sim,
-    coherence, lag,
-    nchunks=10, random_state="random-seed"
-):
-    """
-    Simulates a lightcurve at one wavelength (t_sim) using an observed
-    lightcurve from another wavelength (t_ref) as a reference.
-
-    This method is ideal for using a well-sampled lightcurve to inform the
-    simulation of a sparsely-sampled one, improving the constraints on its
-    power spectrum.
-
-    Parameters
-    ----------
-    t_ref, f_ref, e_ref : array-like
-        Time, flux, and error of the observed reference lightcurve.
-    t_sim : array-like
-        The time points at which to simulate the new lightcurve.
-    psd_sim, psd_params_sim, mean_sim, std_sim :
-        PSD model, parameters, mean, and std for the new simulated lightcurve.
-    coherence : callable
-        The coherence between the two lightcurves as a function C(f) that returns coherence at a given frequency.
-    lag : float or callable
-        The time lag. Can be a single value (e.g., 10.0) or a function tau(f).
-    nchunks : int, optional
-        Oversampling factor for the frequency grid.
-    random_state : int or 'random-seed', optional
-        Seed for the random number generator.
-
-    Returns
-    -------
-    lc_sim : array-like
-        The simulated lightcurve at the t_sim time points.
-    """
-    random_state = _random_state(random_state)
-
-    ls_ref = LombScargle(t_ref, f_ref, e_ref)
-    
-    time_span = obs_times.max() - obs_times.min()
-
-    n_freqs = (len(obs_times) // 2) * nchunks
-    min_freq = 1.0 / time_span
-
-    avg_spacing = np.mean(np.diff(obs_times))
-    max_freq = 1.0 / (2.0 * avg_spacing)
-
-    freqs = np.linspace(min_freq, max_freq, n_freqs).value
-    df = freqs[1] - freqs[0]
-
-    # Fourier fingerprint of the reference LC: power and new random phases
-    power_ref = ls_ref.power(freqs, normalization='psd')
-    fourier_power_ref = power_ref * df
-    phase_ref = 2 * np.pi * random_state.rand(n_freqs)
-    f_coeffs_ref_complex = np.sqrt(fourier_power_ref) * np.exp(1j * phase_ref)
-
-    coh_vals = coherence(freqs)
-    lag_vals = np.full_like(freqs, lag)
-
-    amp_sim = np.sqrt(fourier_power_ref)
-
-    # Generate random coefficients for the incoherent part of the new LC
-    # This part has the correct amplitude to match the target PSD after combination
-    incoherent_amp = amp_sim * np.sqrt(1 - coh_vals**2)
-    rand_phase = 2 * np.pi * random_state.rand(n_freqs)
-    rand_coeffs_complex = incoherent_amp * np.exp(1j * rand_phase)
-
-    # The coherent part is derived from the reference, scaled by coherence
-    coherent_coeffs_complex = f_coeffs_ref_complex * coh_vals
-
-    # Combine them and apply the time lag phase shift
-    phase_lag = -2 * np.pi * freqs * lag_vals
-    f_coeffs_sim_complex = (coherent_coeffs_complex + rand_coeffs_complex) * np.exp(1j * phase_lag)
-
-    lc_sim = np.zeros(len(obs_times))
-    for i in range(n_freqs):
-        lc_sim += (f_coeffs_sim_complex[i] * np.exp(2j * np.pi * freqs[i] * obs_times.value)).real
-    
-    lc_sim = (lc_sim - np.mean(lc_sim)) / np.std(lc_sim) * std_sim + mean_sim
-        
-    return lc_sim, obs_times
-
-def _mwl_psd_worker(args):
-    """
-    Worker function to simulate one lightcurve and compute its periodogram.
-    """
+def _generate_mwl_periodogram(args):
     (
-        t_ref, f_ref, e_ref, t_sim, f_sim, e_sim,
-        psd_sim, psd_params_sim,
-        coherence, lag, nchunks
+        simulator,
+        pdf,
+        psd,
+        obs_times,
+        known_times,
+        known_fluxes,
+        bands,
+        frequencies,
+        pdf_params,
+        psd_params,
+        mean,
+        std,
     ) = args
 
-    lc_sim_realization = simulate_lightcurve_from_reference(
-        t_ref, f_ref, e_ref, t_sim,
-        psd_sim, psd_params_sim, np.mean(f_sim), np.std(f_sim),
-        coherence, lag, nchunks=nchunks
-    )
+    if not np.allclose(np.diff(obs_times), np.diff(obs_times)[0], rtol=1e-5) and simulator != "MTK":
+        raise ValueError("Using an unevenly sampled 'obs_times' with a simulator that does not support it. Use simulator='MTK' for uneven observation times.")
 
-    ls = LombScargle(t_sim, lc_sim_realization, e_sim)
-    freqs, power = ls.autopower(nyquist_factor=1, samples_per_peak=1, normalization="psd")
-    
-    return freqs, power
+    if len(bands) != len(known_times)+len(obs_times) or len(known_times) != len(known_fluxes):
+        raise ValueError("Lengths don't match")
 
-def mwl_psd_envelope(
-    t1, f1, e1,
-    t2, f2, e2,
-    psd2, psd_params2,
-    coherence, lag,
-    nsims=1000, nchunks=10
-):
-    """
-    Generates a PSD envelope for a sparsely-sampled lightcurve (LC2) by using a
-    well-sampled reference lightcurve (LC1) to inform the simulations.
-    """
-    arg_list = [(
-        t1, f1, e1, t2, f2, e2,
-        psd2, psd_params2,
-        coherence, lag, nchunks
-    ) for _ in range(nsims)]
+    if simulator == "TK":
+        tseries, taxis = TimmerKonig_lightcurve_simulator(
+            psd,
+            obs_times,
+            psd_params=psd_params,
+            mean=mean,
+            std=std,
+        )
+    elif simulator == "MTK":
+        tseries, taxis = ModifiedTimmerKonig_lightcurve_simulator(
+            psd,
+            obs_times,
+            psd_params=psd_params,
+            mean=mean,
+            std=std,
+        )
+    elif simulator == "EMM":
+        tseries, taxis = Emmanoulopoulos_lightcurve_simulator(
+            pdf,
+            psd,
+            obs_times,
+            pdf_params=pdf_params,
+            psd_params=psd_params,
+            mean=mean,
+            std=std,
+        )
+    else:
+        raise ValueError("Invalid simulator. Use 'TK', 'MTK' or 'EMM'.")
 
-    with Pool() as pool:
-        results = pool.map(_mwl_psd_worker, arg_list)
+    full_times = np.concatenate((known_times, taxis))
+    full_fluxes = np.concatenate((known_fluxes, tseries))
 
-    all_freqs, all_pgs = zip(*results)
-    
-    return np.array(all_pgs), all_freqs[0]
+    ls = LombScargleMultiband(full_times, full_fluxes, bands)
+    if frequencies is not None:
+        power = ls.power(frequencies, normalization="psd")
+    else:
+        frequencies, power = ls.autopower(nyquist_factor=1, samples_per_peak=1, normalization="psd")
+
+    return frequencies, power

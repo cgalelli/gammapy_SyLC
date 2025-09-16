@@ -4,7 +4,7 @@ from multiprocessing import Pool
 from astropy.timeseries import LombScargle
 from scipy.interpolate import PchipInterpolator
 from .simulators import TimmerKonig_lightcurve_simulator, ModifiedTimmerKonig_lightcurve_simulator, Emmanoulopoulos_lightcurve_simulator
-
+from .multiwavelength import _generate_mwl_periodogram
 
 def _generate_periodogram(args):
     """Helper function to generate a periodogram for a single realization for multiprocessing."""
@@ -96,6 +96,9 @@ def lightcurve_psd_envelope(
         simulator="TK",
         mean=0.0,
         std=1.0,
+        known_times=None,
+        known_fluxes=None,
+        bands=None,
         flux_error=None,
 ):
     """
@@ -134,26 +137,53 @@ def lightcurve_psd_envelope(
     freqs : ndarray
         Frequencies corresponding to the PSD values.
     """
+    if known_times is None and known_fluxes is None and bands is None: 
+        args = [
+            (
+                simulator,
+                pdf,
+                psd,
+                obs_times,
+                frequencies,
+                pdf_params,
+                psd_params,
+                mean,
+                std,
+                flux_error,
+            )
+            for _ in range(nsims)
+        ]
+        
 
-    args = [
-        (
-            simulator,
-            pdf,
-            psd,
-            obs_times,
-            frequencies,
-            pdf_params,
-            psd_params,
-            mean,
-            std,
-            flux_error,
-        )
-        for _ in range(nsims)
-    ]
-    
+        with Pool() as pool:
+            results = pool.map(_generate_periodogram, args)
 
-    with Pool() as pool:
-        results = pool.map(_generate_periodogram, args)
+    elif known_times is not None and known_fluxes is not None and bands is not None:
+        args = [
+            (
+                simulator,
+                pdf,
+                psd,
+                obs_times,
+                known_times,
+                known_fluxes,
+                bands,
+                frequencies,
+                pdf_params,
+                psd_params,
+                mean,
+                std,
+                flux_error,
+            )
+            for _ in range(nsims)
+        ]
+        
+
+        with Pool() as pool:
+            results = pool.map(_generate_mwl_periodogram, args)
+
+    else:
+        raise ValueError("If known_times, known_fluxes and bands are not None, all of them must be provided.")
 
     all_freqs, all_pgs = zip(*results)
 
@@ -239,6 +269,9 @@ def _psd_fit_helper(
         nsims=10000,
         mean=0.,
         std=1.,
+        known_times=None,
+        known_fluxes=None,
+        bands=None,
         flux_error=None,
 ):
     psd_params_keys = list(inspect.signature(psd).parameters.keys())
@@ -261,6 +294,9 @@ def _psd_fit_helper(
         nsims=nsims,
         mean=mean,
         std=std,
+        known_times=known_times,
+        known_fluxes=known_fluxes,
+        bands=bands,
         flux_error=flux_error,
     )
 
