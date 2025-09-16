@@ -55,8 +55,14 @@ def psd_fit(
         Desired mean for the simulated light curves. Default is None.
     std : float or None, optional
         Desired standard deviation for the simulated light curves. Default is None.
-    noise : float or None, optional
-        Noise (relative) amplitude to add to the simulated light curves. Default is None.
+    known_times : ndarray or None, optional
+        Times of known flux measurements to include in the periodogram. Default is None.
+    known_fluxes : ndarray or None, optional
+        Known flux measurements corresponding to `known_times`. Default is None.
+    bands : ndarray or None, optional
+        Band identifiers for multiband Lomb-Scargle periodogram. Length must match `len(known_times) + len(obs_times)`. Default is None.
+    flux_error : ndarray or None, optional
+        Observed flux uncertainties to be used to account for measurement errors in the
     nexp : int, optional
         Number of Monte Carlo simulations for uncertainty estimation. Default is 50.
     full_output : bool, optional

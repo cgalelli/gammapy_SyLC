@@ -111,6 +111,9 @@ def lightcurve_psd_envelope(
         Target power spectral density function.
     obs_times : astropy.units.Quantity
         Observation times. Needs to be evenly spaced if simulator `simulator="EMM"` or '"TK"'.
+    frequencies : ndarray or None, optional
+        Frequencies at which to compute the periodogram. If None, frequencies are
+        automatically determined. Default is None.
     pdf : callable or None, optional
         Probability density function for flux amplitudes. Required if `simulator="EMM"`.
     nsims : int, optional
@@ -125,6 +128,12 @@ def lightcurve_psd_envelope(
         Desired mean of the light curve. Default is 0.0.
     std : float, optional
         Desired standard deviation of the light curve. Default is 1.0.
+    known_times : ndarray or None, optional
+        Times of known flux measurements to include in the periodogram. Default is None.
+    known_fluxes : ndarray or None, optional
+        Known flux measurements corresponding to `known_times`. Default is None.
+    bands : ndarray or None, optional
+        Band identifiers for multiband Lomb-Scargle periodogram. Length must match `
     oversample : int, optional
         Oversampling factor for the light curves. Default is 10.
     noise : float or None, optional
