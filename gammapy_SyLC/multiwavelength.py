@@ -103,18 +103,18 @@ def calculate_zdcf(t1, f1, e1, t2, f2, e2, lag_min, lag_max, lag_bin_width, min_
 
 def _generate_mwl_periodogram(args):
     (
-        simulator,
-        pdf,
-        psd,
-        obs_times,
-        known_times,
-        known_fluxes,
-        bands,
-        frequencies,
-        pdf_params,
-        psd_params,
-        mean,
-        std,
+    simulator,
+    pdf,
+    psd,
+    obs_times,
+    known_times,
+    known_fluxes,
+    bands,
+    frequencies,
+    pdf_params,
+    psd_params,
+    mean,
+    std,
     ) = args
 
     if not np.allclose(np.diff(obs_times), np.diff(obs_times)[0], rtol=1e-5) and simulator != "MTK":

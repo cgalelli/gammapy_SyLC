@@ -182,7 +182,6 @@ def lightcurve_psd_envelope(
                 psd_params,
                 mean,
                 std,
-                flux_error,
             )
             for _ in range(nsims)
         ]
