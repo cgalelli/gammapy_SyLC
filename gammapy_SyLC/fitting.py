@@ -89,7 +89,6 @@ def psd_fit(
             frequencies,
             power,
             obs_times,
-
             psd,
             pdf,
             pdf_params,
@@ -109,7 +108,7 @@ def psd_fit(
 
     if nexp > 0:
         results_list = np.empty((nexp,) + results.x.shape)
-        test_pgram = psd(frequencies, **psd_params)
+        test_pgram = psd(frequencies, **psd_params).value*power.unit
 
         for _ in range(nexp):
             results_err = psd_fit(
@@ -127,10 +126,12 @@ def psd_fit(
                 known_times=known_times,
                 known_fluxes=known_fluxes,
                 bands=bands,
+                flux_error=flux_error,
                 nexp=-1,
                 **kwargs,
             )
             results_list[_] = results_err
+        print(results_list)
         error = np.std(results_list, axis=0)
 
         if full_output:
