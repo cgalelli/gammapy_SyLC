@@ -283,12 +283,12 @@ def compare_normal( # noqa
         those obtained from synthetic light curves.
     """
     fit_stats = pdf_fit(
-        flux,
-        obs_times,
-        psd,
-        psd_params,
-        pdf_test,
-        pdf_initial,
+        flux=flux,
+        obs_times=obs_times,
+        psd=psd,
+        psd_params=psd_params,
+        pdf=pdf_test,
+        pdf_initial=pdf_initial,
         nsims=nsims*5,
         flux_error=flux_error,
         output_type="full",
@@ -300,19 +300,19 @@ def compare_normal( # noqa
     num = np.empty(ntests)
     for j in range(ntests):
         tseries, _ = TimmerKonig_lightcurve_simulator(
-            psd,
-            obs_times,
+            power_spectrum=psd,
+            obs_times=obs_times,
             psd_params=psd_params,
             mean=flux.mean(),
             std=flux.std(),
         )
         fit_test = pdf_fit(
-            tseries,
-            obs_times,
-            psd,
-            psd_params,
-            pdf_test,
-            pdf_initial,
+            flux=tseries,
+            obs_times=obs_times,
+            psd=psd,
+            psd_params=psd_params,
+            pdf=pdf_test,
+            pdf_initial=pdf_initial,
             nsims=nsims,
             flux_error=flux_error,
             output_type="value",
