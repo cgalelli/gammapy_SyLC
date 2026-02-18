@@ -385,41 +385,42 @@ def compare_models( # noqa
     """
 
     fit_stats = pdf_fit(
-        flux,
-        obs_times,
-        psd,
-        psd_params,
-        pdf_test,
-        pdf_initial,
-        nsims=nsims*5,
+        flux=flux,
+        psd=psd,
+        psd_params=psd_params,
+        pdf=pdf_test,
+        pdf_initial=pdf_initial,
+        obs_times=obs_times,
+        nsims=nsims * 5,
         flux_error=flux_error,
         output_type="full",
-        **kwargs, )
-
+        **kwargs,
+    )
     if verbose: print(fit_stats)
 
     num = np.empty(ntests)
     for j in range(ntests):
         tseries, _ = Emmanoulopoulos_lightcurve_simulator(
-            pdf,
-            psd,
-            obs_times,
-            pdf_params=pdf_params,
-            psd_params=psd_params,
-            mean=flux.mean(),
-            std=flux.std(),
-        )
+        pdf=pdf,
+        psd=psd,
+        obs_times=obs_times,
+        pdf_params=pdf_params,
+        psd_params=psd_params,
+        mean=flux.mean(),
+        std=flux.std(),
+    )
         fit_test = pdf_fit(
-            tseries,
-            obs_times,
-            psd,
-            psd_params,
-            pdf_test,
-            pdf_initial,
-            nsims=nsims,
-            flux_error=flux_error,
-            output_type="value",
-            **kwargs, )
+        flux=tseries,
+        psd=psd,
+        psd_params=psd_params,
+        pdf=pdf_test,
+        pdf_initial=pdf_initial,
+        obs_times=obs_times,
+        nsims=nsims,
+        flux_error=flux_error,
+        output_type="value",
+        **kwargs,
+    )
         num[j] = (fit_test - fit_stats.fun)
         if verbose: print(f"Iteration: {j}, partial result: {num[j]}")
 
