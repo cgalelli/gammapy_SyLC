@@ -385,37 +385,35 @@ def compare_models( # noqa
     """
 
     fit_stats = pdf_fit(
-        flux,
-        obs_times,
-        psd,
-        psd_params,
-        pdf_test,
-        pdf_initial,
+        flux=flux,
+        psd=psd,
+        psd_params=psd_params,
+        pdf=pdf_test,
+        pdf_initial=pdf_initial,
+        obs_times=obs_times,
         nsims=nsims*5,
         flux_error=flux_error,
         output_type="full",
         **kwargs, )
-
     if verbose: print(fit_stats)
 
     num = np.empty(ntests)
     for j in range(ntests):
         tseries, _ = Emmanoulopoulos_lightcurve_simulator(
-            pdf,
-            psd,
-            obs_times,
+            pdf=pdf,
+            psd=psd,
+            obs_times=obs_times,
             pdf_params=pdf_params,
             psd_params=psd_params,
             mean=flux.mean(),
-            std=flux.std(),
-        )
+            std=flux.std(), )
         fit_test = pdf_fit(
-            tseries,
-            obs_times,
-            psd,
-            psd_params,
-            pdf_test,
-            pdf_initial,
+            flux=tseries,
+            psd=psd,
+            psd_params=psd_params,
+            pdf=pdf_test,
+            pdf_initial=pdf_initial,
+            obs_times=obs_times,
             nsims=nsims,
             flux_error=flux_error,
             output_type="value",
