@@ -312,4 +312,7 @@ def Emmanoulopoulos_lightcurve_simulator(
 
     lc_sim = lc_sim * std + mean
 
+    if np.sum(lc_sim <= 0) or np.sum(np.isnan(lc_sim)) > 0:
+        raise ValueError(f"Simulated light curve contains non-positive or NaN values: sum of timeseries is {np.sum(lc_sim)}. Consider adjusting the PDF parameters - now {pdf_params} - or increasing the number of iterations.")
+
     return lc_sim, taxis
