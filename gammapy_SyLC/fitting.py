@@ -1,9 +1,101 @@
 import inspect
 import numpy as np
 from scipy.optimize import minimize
+from multiprocessing import Pool
 
 from .helpers import _pdf_fit_helper, _psd_fit_helper
 from .simulators import Emmanoulopoulos_lightcurve_simulator, TimmerKonig_lightcurve_simulator
+from .distributions import get_physical_bounds
+
+def _psd_fit_error_worker(args):
+    """Worker to run a single PSD fit iteration for error estimation."""
+    (
+        frequencies, test_pgram, obs_times, psd, psd_params, pdf, pdf_params,
+        simulator, mean, std, known_times, known_fluxes, bands, flux_error, kwargs
+    ) = args
+    
+    return psd_fit(
+        frequencies=frequencies,
+        power=test_pgram,
+        obs_times=obs_times,
+        psd=psd,
+        psd_initial=psd_params,
+        pdf=pdf,
+        pdf_params=pdf_params,
+        simulator=simulator,
+        nsims=100,
+        mean=mean,
+        std=std,
+        known_times=known_times,
+        known_fluxes=known_fluxes,
+        bands=bands,
+        flux_error=flux_error,
+        nexp=-1,
+        **kwargs,
+    )
+
+def _compare_normal_worker(args):
+    """Worker to simulate a normal light curve and fit it."""
+    (
+        obs_times, pdf_test, pdf_initial, psd, psd_params, mean, std, nsims, flux_error, kwargs
+    ) = args
+    
+    tseries, _ = TimmerKonig_lightcurve_simulator(
+        power_spectrum=psd,
+        obs_times=obs_times,
+        psd_params=psd_params,
+        mean=mean,
+        std=std,
+        nsims=1,
+    )
+    
+    fit_val = pdf_fit(
+        flux=tseries,
+        obs_times=obs_times,
+        psd=psd,
+        psd_params=psd_params,
+        pdf=pdf_test,
+        pdf_initial=pdf_initial,
+        nsims=nsims,
+        flux_error=flux_error,
+        output_type="value",
+        **kwargs,
+    )
+    return fit_val
+
+
+def _compare_models_worker(args):
+    """Worker to simulate an Emmanoulopoulos light curve and fit it."""
+    (
+        obs_times, pdf_test, pdf_initial, psd, psd_params, pdf, pdf_params, 
+        mean, std, nsims, flux_error, kwargs
+    ) = args
+    
+    # 1. Simulate using Emmanoulopoulos (Underlying test distribution)
+    tseries, _ = Emmanoulopoulos_lightcurve_simulator(
+        pdf=pdf,
+        psd=psd,
+        obs_times=obs_times,
+        pdf_params=pdf_params,
+        psd_params=psd_params,
+        mean=mean,
+        std=std,
+        nsims=1,
+    )
+    
+    fit_val = pdf_fit(
+        flux=tseries,
+        psd=psd,
+        psd_params=psd_params,
+        pdf=pdf_test,
+        pdf_initial=pdf_initial,
+        obs_times=obs_times,
+        nsims=nsims,
+        flux_error=flux_error,
+        output_type="value",
+        **kwargs,
+    )
+    return fit_val
 
 
 def psd_fit(
@@ -14,7 +106,7 @@ def psd_fit(
         psd_initial,
         pdf=None,
         pdf_params=None,
-        simulator="TK",
+        simulator="MTK",
         nsims=10000,
         mean=None,
         std=None,
@@ -82,77 +174,49 @@ def psd_fit(
             "The number of MC simulations for the error evaluation nexp must be an integer!"
         )
     kwargs.setdefault("method", "Powell")
+
     results = minimize(
         _psd_fit_helper,
         list(psd_initial.values()),
         args=(
-            frequencies,
-            power,
-            obs_times,
-            psd,
-            pdf,
-            pdf_params,
-            simulator,
-            nsims,
-            mean,
-            std,
-            known_times,
-            known_fluxes,
-            bands,
-            flux_error,
+            frequencies, power, obs_times, psd, pdf, pdf_params,
+            simulator, nsims, mean, std, known_times, known_fluxes, bands, flux_error,
         ),
         **kwargs,
     )
+    
     psd_params_keys = list(inspect.signature(psd).parameters.keys())
     psd_params = dict(zip(psd_params_keys[1:], results.x))
 
     if nexp > 0:
-        results_list = np.empty((nexp,) + results.x.shape)
-        test_pgram = psd(frequencies, **psd_params).value*power.unit
-
-        for _ in range(nexp):
-            results_err = psd_fit(
-                frequencies,
-                test_pgram,
-                obs_times,
-                psd,
-                psd_params,
-                pdf=pdf,
-                pdf_params=pdf_params,
-                simulator=simulator,
-                nsims=100,
-                mean=mean,
-                std=std,
-                known_times=known_times,
-                known_fluxes=known_fluxes,
-                bands=bands,
-                flux_error=flux_error,
-                nexp=-1,
-                **kwargs,
+        test_pgram = psd(frequencies, **psd_params).value * power.unit
+        
+        worker_args = [
+            (
+                frequencies, test_pgram, obs_times, psd, psd_params, pdf, pdf_params,
+                simulator, mean, std, known_times, known_fluxes, bands, flux_error, kwargs
             )
-            results_list[_] = results_err
-        print(results_list)
-        error = np.std(results_list, axis=0)
+            for _ in range(nexp)
+        ]
+        
+        with Pool() as pool:
+            results_list = pool.map(_psd_fit_error_worker, worker_args)
+            
+        results_array = np.array(results_list)
+        error = np.std(results_array, axis=0)
 
-        if full_output:
-            return results, error
-        else:
-            return results.x, error
+        return (results, error) if full_output else (results.x, error)
 
-    else:
-        if full_output:
-            return results
-        else:
-            return results.x
+    return results if full_output else results.x
 
 
 def pdf_fit(
         flux,
+        obs_times,
         psd,
         psd_params,
         pdf,
         pdf_initial,
-        obs_times,
         nsims=10000,
         flux_error=None,
         output_type="value",
@@ -178,10 +242,6 @@ def pdf_fit(
         Initial guesses for the PDF parameters.
     nsims : int, optional
         Number of Monte Carlo simulations for the fitting procedure. Default is 10000.
-    mean : float or None, optional
-        Desired mean for the simulated light curves. Default is None.
-    std : float or None, optional
-        Desired standard deviation for the simulated light curves. Default is None.
     flux_error : ndarray
         Observed flux uncertainties to be used to account for measurement errors in the fit. Default is None.
     output_type : string, optional
@@ -196,25 +256,23 @@ def pdf_fit(
     error : ndarray, optional
         Uncertainties in the estimated parameters (if `nexp > 0`).
     """
-    kwargs.setdefault("method", "Powell")
+    mean = np.mean(flux)
+    std = np.std(flux)
 
-    mean = flux.mean()
-    std = flux.std()
+    if "bounds" not in kwargs:
+        if pdf.__name__ == "lognormal":
+            s_min = get_physical_bounds(mean, std, "lognormal")
+            kwargs["bounds"] = [(s_min + 1e-4, None)]
+        elif pdf.__name__ == "gammaf":
+            a_max = get_physical_bounds(mean, std, "gamma")
+            kwargs["bounds"] = [(1e-4, a_max - 1e-4)]
+
+    kwargs.setdefault("method", "Powell")
 
     results = minimize(
         _pdf_fit_helper,
         list(pdf_initial.values()),
-        args=(
-            flux,
-            obs_times,
-            psd,
-            psd_params,
-            pdf,
-            nsims,
-            mean,
-            std,
-            flux_error,
-        ),
+        args=(flux, obs_times, psd, psd_params, pdf, nsims, flux_error),
         **kwargs,
     )
 
@@ -222,12 +280,7 @@ def pdf_fit(
         return results.x
     elif output_type == "value":
         return results.fun
-    elif output_type == "full":
-        return results
-    else:
-        raise ValueError(
-            f"Accepted values for {output_type} are 'parameters', 'value' or 'full'"
-        )
+    return results
 
 
 def compare_normal( # noqa
@@ -238,7 +291,7 @@ def compare_normal( # noqa
         psd,
         psd_params,
         nsims=100,
-        ntests=200,
+        ntests=100,
         flux_error=None,
         verbose=False,
         **kwargs,
@@ -262,14 +315,10 @@ def compare_normal( # noqa
         The power spectral density (PSD) model used for simulation.
     psd_params : dict
         Parameters for the PSD model.
-    nsims : int, optional (default=1000)
+    nsims : int, optional (default=100)
         Number of simulated light curves to generate for the fit.
     ntests : int, optional (default=100)
         Number of Monte Carlo trials to assess statistical significance.
-    mean : float, optional
-        Mean flux level to be used in simulated light curves.
-    std : float, optional
-        Standard deviation of the flux in simulated light curves.
     flux_error : array-like, optional
         Measurement errors associated with the flux values.
     verbose : bool
@@ -283,6 +332,9 @@ def compare_normal( # noqa
         List of differences between the test statistic of the real data and
         those obtained from synthetic light curves.
     """
+    mean = flux.mean()
+    std = flux.std()
+
     fit_stats = pdf_fit(
         flux=flux,
         obs_times=obs_times,
@@ -293,35 +345,25 @@ def compare_normal( # noqa
         nsims=nsims*5,
         flux_error=flux_error,
         output_type="full",
-        **kwargs, )
+        **kwargs, 
+    )
 
-    if verbose: print(fit_stats)
+    if verbose: 
+        print(f"Base fit status: {fit_stats.message}")
 
+    worker_args = [
+        (obs_times, pdf_test, pdf_initial, psd, psd_params, mean, std, nsims, flux_error, kwargs)
+        for _ in range(ntests)
+    ]
 
-    num = np.empty(ntests)
-    for j in range(ntests):
-        tseries, _ = TimmerKonig_lightcurve_simulator(
-            power_spectrum=psd,
-            obs_times=obs_times,
-            psd_params=psd_params,
-            mean=flux.mean(),
-            std=flux.std(),
-        )
-        fit_test = pdf_fit(
-            flux=tseries,
-            obs_times=obs_times,
-            psd=psd,
-            psd_params=psd_params,
-            pdf=pdf_test,
-            pdf_initial=pdf_initial,
-            nsims=nsims,
-            flux_error=flux_error,
-            output_type="value",
-            **kwargs, )
-        num[j] = (fit_test - fit_stats.fun)
-        if verbose: print(f"Iteration: {j}, partial result: {num[j]}")
+    with Pool() as pool:
+        test_funs = pool.map(_compare_normal_worker, worker_args)
 
-    return fit_stats, len(num[num < 0]) / ntests
+    test_funs = np.array(test_funs)
+    num = test_funs - fit_stats.fun
+
+    p_value = len(num[num < 0]) / ntests
+    return fit_stats, p_value
 
 
 def compare_models( # noqa
@@ -334,7 +376,7 @@ def compare_models( # noqa
         pdf,
         pdf_params,
         nsims=100,
-        ntests=200,
+        ntests=100,
         flux_error=None,
         verbose=False,
         **kwargs,
@@ -362,14 +404,10 @@ def compare_models( # noqa
         The PDF model used for generating synthetic light curves.
     pdf_params : dict
         Parameters for the PDF model used in simulations.
-    nsims : int, optional (default=1000)
+    nsims : int, optional (default=100)
         Number of simulated light curves to generate for the fit.
     ntests : int, optional (default=100)
         Number of Monte Carlo trials to assess statistical significance.
-    mean : float, optional
-        Mean flux level to be used in simulated light curves.
-    std : float, optional
-        Standard deviation of the flux in simulated light curves.
     flux_error : array-like, optional
         Measurement errors associated with the flux values.
     verbose : bool
@@ -383,6 +421,8 @@ def compare_models( # noqa
         List of differences between the test statistic of the real data and
         those obtained from synthetic light curves.
     """
+    mean = flux.mean()
+    std = flux.std()
 
     fit_stats = pdf_fit(
         flux=flux,
@@ -394,31 +434,22 @@ def compare_models( # noqa
         nsims=nsims*5,
         flux_error=flux_error,
         output_type="full",
-        **kwargs, )
-    if verbose: print(fit_stats)
+        **kwargs, 
+    )
+    
+    if verbose: 
+        print(f"Base fit status: {fit_stats.message}")
 
-    num = np.empty(ntests)
-    for j in range(ntests):
-        tseries, _ = Emmanoulopoulos_lightcurve_simulator(
-            pdf=pdf,
-            psd=psd,
-            obs_times=obs_times,
-            pdf_params=pdf_params,
-            psd_params=psd_params,
-            mean=flux.mean(),
-            std=flux.std(), )
-        fit_test = pdf_fit(
-            flux=tseries,
-            psd=psd,
-            psd_params=psd_params,
-            pdf=pdf_test,
-            pdf_initial=pdf_initial,
-            obs_times=obs_times,
-            nsims=nsims,
-            flux_error=flux_error,
-            output_type="value",
-            **kwargs, )
-        num[j] = (fit_test - fit_stats.fun)
-        if verbose: print(f"Iteration: {j}, partial result: {num[j]}")
+    worker_args = [
+        (obs_times, pdf_test, pdf_initial, psd, psd_params, pdf, pdf_params, mean, std, nsims, flux_error, kwargs)
+        for _ in range(ntests)
+    ]
 
-    return fit_stats, len(num[num < 0]) / ntests
+    with Pool() as pool:
+        test_funs = pool.map(_compare_models_worker, worker_args)
+
+    test_funs = np.array(test_funs)
+    num = test_funs - fit_stats.fun
+
+    p_value = len(num[num < 0]) / ntests
+    return fit_stats, p_value

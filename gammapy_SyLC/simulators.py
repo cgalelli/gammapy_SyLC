@@ -1,32 +1,7 @@
-import numbers
 import numpy as np
 
-
 def _random_state(init):
-    """Get a `numpy.random.RandomState` instance.
-
-    The purpose of this utility function is to have a flexible way
-    to initialise a `~numpy.random.RandomState` instance,
-    a.k.a. a random number generator (``rng``).
-
-    Parameters
-    ----------
-    init : {int, 'random-seed', 'global-rng', `~numpy.random.RandomState`}
-        Available options to initialise the RandomState object:
-
-        * ``int`` -- new RandomState instance seeded with this integer
-          (calls `~numpy.random.RandomState` with ``seed=init``)
-        * ``'random-seed'`` -- new RandomState instance seeded in a random way
-          (calls `~numpy.random.RandomState` with ``seed=None``)
-        * ``'global-rng'``, return the RandomState singleton used by ``numpy.random``.
-        * `~numpy.random.RandomState` -- do nothing, return the input.
-
-    Returns
-    -------
-    random_state : `~numpy.random.RandomState`
-        RandomState instance.
-    """
-    if isinstance(init, (numbers.Integral, np.integer)):
+    if isinstance(init, (np.integer)):
         return np.random.RandomState(init)
     elif init == "random-seed":
         return np.random.RandomState(None)
@@ -35,11 +10,7 @@ def _random_state(init):
     elif isinstance(init, np.random.RandomState):
         return init
     else:
-        raise ValueError(
-            "{} cannot be used to seed a numpy.random.RandomState"
-            " instance".format(init)
-        )
-
+        raise ValueError(f"{init} cannot be used to seed a RandomState instance")
 
 def TimmerKonig_lightcurve_simulator(
         power_spectrum,
@@ -49,6 +20,7 @@ def TimmerKonig_lightcurve_simulator(
         psd_params=None,
         mean=0.0,
         std=1.0,
+        nsims=1,
 ):
     """
     Simulate a light curve using the Timmer & Koenig method.
@@ -69,6 +41,8 @@ def TimmerKonig_lightcurve_simulator(
         Desired mean of the light curve. Default is 0.0.
     std : float, optional
         Desired standard deviation of the light curve. Default is 1.0.
+    nsims : int, optional
+        Number of simulated light curves to generate. Default is 1.
 
     Returns:
     --------
@@ -78,22 +52,14 @@ def TimmerKonig_lightcurve_simulator(
         Time values corresponding to the light curve.
     """
     if not callable(power_spectrum):
-        raise ValueError(
-            "The power spectrum has to be provided as a callable function."
-        )
+        raise ValueError("The power spectrum has to be provided as a callable function.")
 
     npoints = len(obs_times)
     spacing = np.diff(obs_times)[0]
-
-    if not isinstance(npoints * nchunks, int):
-        raise TypeError("npoints and nchunks must be integers")
-
     random_state = _random_state(random_state)
-
     npoints_ext = npoints * nchunks
 
     frequencies = np.fft.fftfreq(npoints_ext, spacing.value)
-
     real_frequencies = np.sort(np.abs(frequencies[frequencies < 0]))
 
     if psd_params:
@@ -101,39 +67,42 @@ def TimmerKonig_lightcurve_simulator(
     else:
         periodogram = power_spectrum(real_frequencies)
 
-    real_part = random_state.normal(0, 1, len(periodogram) - 1)
-    imaginary_part = random_state.normal(0, 1, len(periodogram) - 1)
+    real_part = random_state.normal(0, 1, (nsims, len(periodogram) - 1))
+    imaginary_part = random_state.normal(0, 1, (nsims, len(periodogram) - 1))
 
     if npoints_ext % 2 == 0:
         idx0 = -2
-        random_factor = random_state.normal(0, 1)
+        random_factor = random_state.normal(0, 1, (nsims, 1))
     else:
         idx0 = -1
-        random_factor = random_state.normal(0, 1) + 1j * random_state.normal(0, 1)
+        random_factor = random_state.normal(0, 1, (nsims, 1)) + 1j * random_state.normal(0, 1, (nsims, 1))
 
-    fourier_coeffs = np.concatenate(
-        [
-            np.sqrt(0.5 * periodogram[:-1]) * (real_part + 1j * imaginary_part),
-            np.sqrt(0.5 * periodogram[-1:]) * random_factor,
-        ]
-    )
-    fourier_coeffs = np.concatenate(
-        [fourier_coeffs, np.conjugate(fourier_coeffs[idx0::-1])]
-    )
+    main_coeffs = np.sqrt(0.5 * periodogram[:-1]) * (real_part + 1j * imaginary_part)
+    end_coeff = np.sqrt(0.5 * periodogram[-1:]) * random_factor
+    fourier_coeffs = np.concatenate([main_coeffs, end_coeff], axis=1)
+    
+    neg_coeffs = np.conjugate(fourier_coeffs[:, idx0::-1])
+    fourier_coeffs = np.concatenate([fourier_coeffs, neg_coeffs], axis=1)
 
-    fourier_coeffs = np.insert(fourier_coeffs, 0, 0)
-    time_series = np.fft.ifft(fourier_coeffs).real
+    fourier_coeffs = np.insert(fourier_coeffs, 0, 0, axis=1)
+    
+    time_series = np.fft.ifft(fourier_coeffs, axis=1).real
 
     ndiv = npoints_ext // (2 * nchunks)
     setstart = npoints_ext // 2 - ndiv
     setend = npoints_ext // 2 + ndiv
     if npoints % 2 != 0:
         setend = setend + 1
-    time_series = time_series[setstart:setend]
+        
+    time_series = time_series[:, setstart:setend]
 
-    time_series = (time_series - time_series.mean()) / time_series.std()
-
+    ts_mean = time_series.mean(axis=1, keepdims=True)
+    ts_std = time_series.std(axis=1, keepdims=True)
+    time_series = (time_series - ts_mean) / ts_std
     time_series = time_series * std + mean
+
+    if nsims == 1:
+        time_series = time_series.flatten()
 
     return time_series, obs_times
 
@@ -145,6 +114,7 @@ def ModifiedTimmerKonig_lightcurve_simulator(
         random_state="random-seed",
         mean=0.0,
         std=1.0,
+        nsims=1,
 ):
     """
     Simulates a light curve at specific uneven time points using direct summation.
@@ -166,6 +136,8 @@ def ModifiedTimmerKonig_lightcurve_simulator(
         The desired mean of the simulated light curve. Default is 0.0.
     std : float, optional
         The desired standard deviation of the simulated light curve. Default is 1.0.
+    nsims : int, optional
+        Number of simulated light curves to generate. Default is 1.
 
     Returns
     -------
@@ -175,42 +147,37 @@ def ModifiedTimmerKonig_lightcurve_simulator(
         The input observation times.
     """
     random_state = _random_state(random_state)
-
-    # 1. Define a frequency grid
-    # The number of frequencies is increased by the oversampling factor
     time_span = obs_times.max() - obs_times.min()
-
     n_freqs = (len(obs_times) // 2) * nchunks
     min_freq = 1.0 / time_span
 
-    # Define max_freq based on the mean sampling, the "effective Nyquist"
     avg_spacing = np.mean(np.diff(obs_times))
     max_freq = 1.0 / (2.0 * avg_spacing)
 
-    # Create the frequency array
     real_frequencies = np.linspace(min_freq, max_freq, n_freqs).value
 
-    # 2. Compute the PSD values at these frequencies
     if psd_params:
         periodogram = power_spectrum(real_frequencies, **psd_params)
     else:
         periodogram = power_spectrum(real_frequencies)
     
-    # 3. Generate random Fourier coefficients
-    f_coeffs = np.sqrt(0.5 * periodogram* (real_frequencies[1] - real_frequencies[0]))*(random_state.normal(0, 1, len(real_frequencies))-1j*random_state.normal(0, 1, len(real_frequencies)))
+    df = real_frequencies[1] - real_frequencies[0]
+    rand_complex = random_state.normal(0, 1, (nsims, len(real_frequencies))) - 1j * random_state.normal(0, 1, (nsims, len(real_frequencies)))
+    f_coeffs = np.sqrt(0.5 * periodogram * df) * rand_complex
 
-    # 4. Direct summation to compute the time series at the desired observation times
-    time_series = np.zeros(len(obs_times))
-    for i in range(len(real_frequencies)):
-        time_series += (f_coeffs[i] * np.exp(2j * np.pi * real_frequencies[i] * obs_times.value)).real
+    phase_matrix = np.exp(2j * np.pi * np.outer(real_frequencies, obs_times.value))
+    
+    time_series = (f_coeffs @ phase_matrix).real
 
-
-    # 5. Normalize the time series to have the desired mean and std
-    time_series = (time_series - time_series.mean()) / time_series.std()
+    ts_mean = time_series.mean(axis=1, keepdims=True)
+    ts_std = time_series.std(axis=1, keepdims=True)
+    time_series = (time_series - ts_mean) / ts_std
     time_series = time_series * std + mean
     
+    if nsims == 1:
+        time_series = time_series.flatten()
+        
     return time_series, obs_times
-
 
 def Emmanoulopoulos_lightcurve_simulator(
         pdf,
@@ -219,11 +186,12 @@ def Emmanoulopoulos_lightcurve_simulator(
         pdf_params=None,
         psd_params=None,
         random_state="random-seed",
-        base_sim = "MTK",
+        base_sim="MTK",
         imax=1000,
         nchunks=10,
         mean=0.0,
         std=1.0,
+        nsims=1,
 ):
     """
     Simulate a light curve using the Emmanoulopoulos method.
@@ -252,6 +220,8 @@ def Emmanoulopoulos_lightcurve_simulator(
         Desired mean of the light curve. Default is 0.0.
     std : float, optional
         Desired standard deviation of the light curve. Default is 1.0.
+    nsims : int, optional
+        Number of simulated light curves to generate. Default is 1.
 
     Returns:
     --------
@@ -260,59 +230,53 @@ def Emmanoulopoulos_lightcurve_simulator(
     taxis : array_like
         Time values corresponding to the light curve.
     """
-
     npoints = len(obs_times)
 
     if base_sim == "MTK":
         lc_norm, taxis = ModifiedTimmerKonig_lightcurve_simulator(
-            psd,
-            obs_times,
-            nchunks=nchunks,
-            psd_params=psd_params,
-            random_state=random_state,
+            psd, obs_times, nchunks=nchunks, psd_params=psd_params, random_state=random_state, nsims=nsims
         )
     elif base_sim == "TK":
         lc_norm, taxis = TimmerKonig_lightcurve_simulator(
-            psd,
-            obs_times,
-            nchunks=nchunks,
-            psd_params=psd_params,
-            random_state=random_state,
+            psd, obs_times, nchunks=nchunks, psd_params=psd_params, random_state=random_state, nsims=nsims
         )
     else:
         raise ValueError("Allowed values for base_sim are 'MTK' or 'TK'")
 
     random_state = _random_state(random_state)
 
-    fft_norm = np.fft.rfft(lc_norm)
+    lc_norm = np.atleast_2d(lc_norm)
 
+    fft_norm = np.fft.rfft(lc_norm, axis=1)
     a_norm = np.abs(fft_norm) / npoints
 
-    xx = np.linspace(-10, 10, 10000)
-    lc_sim = np.interp(
-        random_state.rand(npoints),
-        np.cumsum(pdf(xx, **pdf_params)) / np.sum(pdf(xx, **pdf_params)),
-        xx,
-    )
+    x_min = max(1e-20, mean - 5*std) 
+    x_max = mean + 50 * std
+    xx = np.linspace(x_min, x_max, 10000)
+    cdf = np.cumsum(pdf(xx, **pdf_params, mean=mean, std=std))
+    cdf = cdf / cdf[-1]
 
-    nconv = True
-    i = 0
-    while nconv and i < imax:
-        i += 1
-        fft_sim = np.fft.rfft(lc_sim)
+    rand_vals = random_state.rand(nsims * npoints)
+    lc_sim = np.interp(rand_vals, cdf, xx).reshape(nsims, npoints)
+
+    row_idx = np.arange(nsims)[:, None]
+
+    for i in range(imax):
+        fft_sim = np.fft.rfft(lc_sim, axis=1)
         phi_sim = np.angle(fft_sim)
         fft_adj = a_norm * np.exp(1j * phi_sim)
-        lc_adj = np.fft.irfft(fft_adj, npoints)
-        if np.array_equal(np.argsort(lc_sim), np.argsort(lc_adj)):
-            nconv = False
-        lc_adj[np.argsort(lc_adj)] = lc_sim[np.argsort(lc_sim)]
+        lc_adj = np.fft.irfft(fft_adj, npoints, axis=1)
+        
+        sort_sim = np.argsort(lc_sim, axis=1)
+        sort_adj = np.argsort(lc_adj, axis=1)
+        
+        if np.array_equal(sort_sim, sort_adj):
+            break
+            
+        lc_adj[row_idx, sort_adj] = lc_sim[row_idx, sort_sim]
         lc_sim = lc_adj
 
-    lc_sim = (lc_sim - lc_sim.mean()) / lc_sim.std()
-
-    lc_sim = lc_sim * std + mean
-
-    if np.sum(lc_sim <= 0) or np.sum(np.isnan(lc_sim)) > 0:
-        raise ValueError(f"Simulated light curve contains non-positive or NaN values: sum of timeseries is {np.sum(lc_sim)}. Consider adjusting the PDF parameters - now {pdf_params} - or increasing the number of iterations.")
+    if nsims == 1:
+        lc_sim = lc_sim.flatten()
 
     return lc_sim, taxis

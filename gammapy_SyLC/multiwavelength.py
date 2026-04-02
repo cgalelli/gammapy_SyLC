@@ -1,6 +1,4 @@
 import numpy as np
-from astropy.timeseries import LombScargleMultiband
-from .simulators import ModifiedTimmerKonig_lightcurve_simulator, TimmerKonig_lightcurve_simulator, Emmanoulopoulos_lightcurve_simulator
 
 def calculate_zdcf(t1, f1, e1, t2, f2, e2, lag_min, lag_max, lag_bin_width, min_pairs_per_bin=11):
     """
@@ -99,66 +97,3 @@ def calculate_zdcf(t1, f1, e1, t2, f2, e2, lag_min, lag_max, lag_bin_width, min_
     dcf_pos_err[valid_bins_mask] = dcf_upper - dcf_valid
     
     return lag_bins, dcf, dcf_pos_err, dcf_neg_err, n_pairs_per_bin
-
-
-def _generate_mwl_periodogram(args):
-    (
-    simulator,
-    pdf,
-    psd,
-    obs_times,
-    known_times,
-    known_fluxes,
-    bands,
-    frequencies,
-    pdf_params,
-    psd_params,
-    mean,
-    std,
-    ) = args
-
-    if not np.allclose(np.diff(obs_times), np.diff(obs_times)[0], rtol=1e-5) and simulator != "MTK":
-        raise ValueError("Using an unevenly sampled 'obs_times' with a simulator that does not support it. Use simulator='MTK' for uneven observation times.")
-
-    if len(bands) != len(known_times)+len(obs_times) or len(known_times) != len(known_fluxes):
-        raise ValueError("Lengths don't match")
-
-    if simulator == "TK":
-        tseries, taxis = TimmerKonig_lightcurve_simulator(
-            psd,
-            obs_times,
-            psd_params=psd_params,
-            mean=mean,
-            std=std,
-        )
-    elif simulator == "MTK":
-        tseries, taxis = ModifiedTimmerKonig_lightcurve_simulator(
-            psd,
-            obs_times,
-            psd_params=psd_params,
-            mean=mean,
-            std=std,
-        )
-    elif simulator == "EMM":
-        tseries, taxis = Emmanoulopoulos_lightcurve_simulator(
-            pdf,
-            psd,
-            obs_times,
-            pdf_params=pdf_params,
-            psd_params=psd_params,
-            mean=mean,
-            std=std,
-        )
-    else:
-        raise ValueError("Invalid simulator. Use 'TK', 'MTK' or 'EMM'.")
-
-    full_times = np.concatenate((known_times, taxis))
-    full_fluxes = np.concatenate((known_fluxes, tseries))
-
-    ls = LombScargleMultiband(full_times, full_fluxes, bands)
-    if frequencies is not None:
-        power = ls.power(frequencies, normalization="psd")
-    else:
-        frequencies, power = ls.autopower(nyquist_factor=1, samples_per_peak=1, normalization="psd")
-
-    return frequencies, power

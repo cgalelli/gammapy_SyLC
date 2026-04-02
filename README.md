@@ -71,7 +71,7 @@ obs_times = np.linspace(0, 7000, 1000) * u.d
 tseries, times = Emmanoulopoulos_lightcurve_simulator(
     pdf_model, psd_model, obs_times,
     pdf_params=pdf_params, psd_params=psd_params,
-    mean=1.0, std=0.5
+    mean=1.0, std=0.5, nsims=1,
 )
 
 # Plot the simulated light curve
@@ -96,12 +96,11 @@ import pyLCR
 
 # Retrieve a gamma-ray light curve from the Fermi-LAT Light Curve Repository
 data = pyLCR.getLightCurve('4FGL J2202.7+4216', cadence='weekly', flux_type='photon', index_type='fixed', ts_min=4)
-times = data.met_detections
+times = data.met_detections * u.s
 flux = data.flux
-flux_err = data.flux_error
 
 # Compute the periodogram
-ls = LombScargle(times, flux, flux_err)
+ls = LombScargle(times, flux)
 freq, power = ls.autopower(nyquist_factor=1, samples_per_peak=1, normalization="psd")
 
 # Fit the PSD with a power-law model
@@ -111,15 +110,17 @@ print(f"Best-fit PSD index: {psd_index}")
 # Generate PSD envelope for visualization
 envelopes, freqs = lightcurve_psd_envelope(
     pl, times, psd_params={"index": psd_index},
-    simulator="TK", nsims=1000, mean=flux.mean(), std=flux.std(),
+    simulator="MTK", nsims=1000, mean=flux.mean(), std=flux.std(),
 )
 qmin2, qmin1, qmax1, qmax2 = np.quantile(envelopes, [0.025, 0.16, 0.84, 0.975], axis=0)
+
+freqs = freqs.value
 
 # Plot periodogram and PSD envelope
 plt.plot(freqs, np.median(envelopes, axis=0))
 plt.fill_between(freqs, qmin2, qmax2, alpha=0.5, color='#1f77b4')
 plt.fill_between(freqs, qmin1, qmax1, alpha=0.3, color='#1f77b4')
-plt.plot(freqs, pgram[1:], linewidth=0.7, label="Observed")
+plt.plot(freqs, power, linewidth=0.7, label="Observed")
 plt.yscale("log")
 plt.xlabel("Frequency (1/day)")
 plt.ylabel("Power Spectral Density")

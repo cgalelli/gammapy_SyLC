@@ -1,89 +1,8 @@
 import inspect
 import numpy as np
-from multiprocessing import Pool
-from astropy.timeseries import LombScargle
+from astropy.timeseries import LombScargle, LombScargleMultiband
 from scipy.interpolate import PchipInterpolator
 from .simulators import TimmerKonig_lightcurve_simulator, ModifiedTimmerKonig_lightcurve_simulator, Emmanoulopoulos_lightcurve_simulator
-from .multiwavelength import _generate_mwl_periodogram
-
-def _generate_periodogram(args):
-    """Helper function to generate a periodogram for a single realization for multiprocessing."""
-    (
-        simulator,
-        pdf,
-        psd,
-        obs_times,
-        frequencies,
-        pdf_params,
-        psd_params,
-        mean,
-        std,
-        flux_error,
-    ) = args
-
-    if not np.allclose(np.diff(obs_times), np.diff(obs_times)[0], rtol=1e-5) and simulator != "MTK":
-        raise ValueError("Using an unevenly sampled 'obs_times' with a simulator that does not support it. Use simulator='MTK' for uneven observation times.")
-
-    if simulator == "TK":
-        tseries, taxis = TimmerKonig_lightcurve_simulator(
-            psd,
-            obs_times,
-            psd_params=psd_params,
-            mean=mean,
-            std=std,
-        )
-    elif simulator == "MTK":
-        tseries, taxis = ModifiedTimmerKonig_lightcurve_simulator(
-            psd,
-            obs_times,
-            psd_params=psd_params,
-            mean=mean,
-            std=std,
-        )
-    elif simulator == "EMM":
-        tseries, taxis = Emmanoulopoulos_lightcurve_simulator(
-            pdf,
-            psd,
-            obs_times,
-            pdf_params=pdf_params,
-            psd_params=psd_params,
-            mean=mean,
-            std=std,
-        )
-    else:
-        raise ValueError("Invalid simulator. Use 'TK', 'MTK' or 'EMM'.")
-
-    ls = LombScargle(taxis, tseries, flux_error)
-    if frequencies is not None:
-        power = ls.power(frequencies, normalization="psd")
-    else:
-        frequencies, power = ls.autopower(nyquist_factor=1, samples_per_peak=1, normalization="psd")
-
-    return frequencies, power
-
-
-def _wrap_emm(args):
-    """Helper wrapper of the Emmanoulopoulos algorithm for multiprocessing."""
-    (
-        pdf,
-        psd,
-        obs_times,
-        pdf_params,
-        psd_params,
-        mean,
-        std,
-    ) = args
-    tseries, _ = Emmanoulopoulos_lightcurve_simulator(
-        pdf,
-        psd,
-        obs_times,
-        pdf_params=pdf_params,
-        psd_params=psd_params,
-        mean=mean,
-        std=std,
-    )
-    return tseries
-
 
 def lightcurve_psd_envelope(
         psd,
@@ -93,7 +12,7 @@ def lightcurve_psd_envelope(
         nsims=10000,
         pdf_params=None,
         psd_params=None,
-        simulator="TK",
+        simulator="MTK",
         mean=0.0,
         std=1.0,
         known_times=None,
@@ -146,60 +65,53 @@ def lightcurve_psd_envelope(
     freqs : ndarray
         Frequencies corresponding to the PSD values.
     """
+    if not np.allclose(np.diff(obs_times), np.diff(obs_times)[0], rtol=1e-5) and simulator != "MTK":
+            raise ValueError("Using an unevenly sampled 'obs_times' with a simulator that does not support it. Use simulator='MTK' for uneven observation times.")
+
+    if simulator == "TK":
+        tseries_matrix, taxis = TimmerKonig_lightcurve_simulator(
+            psd, obs_times, psd_params=psd_params, mean=mean, std=std, nsims=nsims
+        )
+    elif simulator == "MTK":
+        tseries_matrix, taxis = ModifiedTimmerKonig_lightcurve_simulator(
+            psd, obs_times, psd_params=psd_params, mean=mean, std=std, nsims=nsims
+        )
+    elif simulator == "EMM":
+        tseries_matrix, taxis = Emmanoulopoulos_lightcurve_simulator(
+            pdf, psd, obs_times, pdf_params=pdf_params, psd_params=psd_params, mean=mean, std=std, nsims=nsims
+        )
+    else:
+        raise ValueError("Invalid simulator. Use 'TK', 'MTK' or 'EMM'.")
+
+    all_pgs = []
+    
+
     if known_times is None and known_fluxes is None and bands is None: 
-        args = [
-            (
-                simulator,
-                pdf,
-                psd,
-                obs_times,
-                frequencies,
-                pdf_params,
-                psd_params,
-                mean,
-                std,
-                flux_error,
-            )
-            for _ in range(nsims)
-        ]
-        
-
-        with Pool() as pool:
-            results = pool.map(_generate_periodogram, args)
-
+        for i in range(nsims):
+            ls = LombScargle(taxis, tseries_matrix[i], flux_error)
+            if frequencies is not None:
+                power = ls.power(frequencies, normalization="psd")
+            else:
+                frequencies, power = ls.autopower(nyquist_factor=1, samples_per_peak=1, normalization="psd")
+            all_pgs.append(power)
     elif known_times is not None and known_fluxes is not None and bands is not None:
-        args = [
-            (
-                simulator,
-                pdf,
-                psd,
-                obs_times,
-                known_times,
-                known_fluxes,
-                bands,
-                frequencies,
-                pdf_params,
-                psd_params,
-                mean,
-                std,
-            )
-            for _ in range(nsims)
-        ]
-        
+        full_times = np.concatenate((known_times, taxis))
+        full_fluxes = np.concatenate((known_fluxes, tseries_matrix), axis=0)
+        full_bands = np.concatenate((bands, np.zeros_like(taxis, dtype=int)))
 
-        with Pool() as pool:
-            results = pool.map(_generate_mwl_periodogram, args)
+        for i in range(nsims):
+            ls = LombScargleMultiband(full_times, full_fluxes[i], full_bands)
+            if frequencies is not None:
+                power = ls.power(frequencies, normalization="psd")
+            else:
+                frequencies, power = ls.autopower(nyquist_factor=1, samples_per_peak=1, normalization="psd")
+            all_pgs.append(power)
 
     else:
         raise ValueError("If known_times, known_fluxes and bands are not None, all of them must be provided.")
 
-    all_freqs, all_pgs = zip(*results)
-
     envelopes_psd = np.array(all_pgs)
-    freqs = all_freqs[0]
-    
-    return envelopes_psd, freqs
-
+    return envelopes_psd, frequencies
 
 def interp_pdf(
         psd,
@@ -240,28 +152,14 @@ def interp_pdf(
         A piecewise cubic Hermite interpolating polynomial (PCHIP) object representing
         the observed PDF based on the simulated flux amplitudes.
     """
-    args = [
-        (
-            pdf,
-            psd,
-            obs_times,
-            pdf_params,
-            psd_params,
-            mean,
-            std,
-        )
-        for _ in range(nsims)
-    ]
+    tseries_matrix, _ = Emmanoulopoulos_lightcurve_simulator(
+        pdf, psd, obs_times, pdf_params=pdf_params, psd_params=psd_params, mean=mean, std=std, nsims=nsims
+    )
 
-    with Pool() as pool:
-        results = pool.map(_wrap_emm, args)
-
-    hist, bin_edges = np.histogram(np.array(results).flatten(), bins="auto", density=True)
-
+    hist, bin_edges = np.histogram(tseries_matrix.flatten(), bins="auto", density=True)
     bin_centers = (bin_edges[:-1] + bin_edges[1:]) / 2
 
     pdf_interpolated = PchipInterpolator(bin_centers, hist)
-
     return pdf_interpolated
 
 
@@ -327,18 +225,14 @@ def _pdf_fit_helper(
         psd_params,
         pdf,
         nsims=500,
-        mean=0.,
-        std=1.,
         flux_error=None,
 ):
-    pdf_params_keys = list(inspect.signature(pdf).parameters.keys())
+    mean = np.mean(flux)
+    std = np.std(flux)
 
-    if len(pdf_params_keys[1:]) != len(pdf_params_list):
-        raise ValueError(
-            "parameter values do not correspond to the request from the pdf function"
-        )
-
-    pdf_params = dict(zip(pdf_params_keys[1:], pdf_params_list))
+    param_names = list(inspect.signature(pdf).parameters.keys())[1:] 
+    fit_param_names = [p for p in param_names if p not in ['mean', 'std']]
+    pdf_params = dict(zip(fit_param_names, pdf_params_list))
 
     pdf_interpolated = interp_pdf(
         psd,
