@@ -259,13 +259,17 @@ def pdf_fit(
     mean = np.mean(flux)
     std = np.std(flux)
 
-    if "bounds" not in kwargs:
-        if pdf.__name__ == "lognormal":
-            s_min = get_physical_bounds(mean, std, "lognormal")
-            kwargs["bounds"] = [(s_min + 1e-4, None)]
-        elif pdf.__name__ == "gammaf":
-            a_max = get_physical_bounds(mean, std, "gamma")
-            kwargs["bounds"] = [(1e-4, a_max - 1e-4)]
+    if pdf.__name__ == "lognormal":
+        s_min = get_physical_bounds(mean, std, "lognormal")
+        if kwargs["bounds"] is not None:
+            s_min = max(s_min*(1 + 1e-6), kwargs["bounds"][0][0])
+        kwargs["bounds"] = [(s_min, None)]
+    elif pdf.__name__ == "gammaf":
+        a_max = get_physical_bounds(mean, std, "gamma")
+        if kwargs["bounds"] is not None:
+            a_max = min(a_max*(1 - 1e-6), kwargs["bounds"][0][1])
+            a_min = max(a_max*1e-6, kwargs["bounds"][0][0])
+        kwargs["bounds"] = [(a_min, a_max)]
 
     kwargs.setdefault("method", "Powell")
 

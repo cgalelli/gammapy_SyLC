@@ -254,7 +254,7 @@ def Emmanoulopoulos_lightcurve_simulator(
     x_max = mean + 50 * std
     xx = np.linspace(x_min, x_max, 10000)
     cdf = np.cumsum(pdf(xx, **pdf_params, mean=mean, std=std))
-    cdf = cdf / cdf[-1]
+    cdf = cdf / cdf[-1] if cdf[-1] > 0 else cdf
 
     rand_vals = random_state.rand(nsims * npoints)
     lc_sim = np.interp(rand_vals, cdf, xx).reshape(nsims, npoints)
