@@ -16,8 +16,6 @@ from .fitting import (
     compare_models,
 )
 
-from .multiwavelength import calculate_zdcf
-
-from .helpers import lightcurve_psd_envelope, interp_pdf
+from .helpers import lightcurve_psd_envelope, interp_pdf, calculate_zdcf
 
 from .to_gammapy import simulate_flux_points, from_flux_points
