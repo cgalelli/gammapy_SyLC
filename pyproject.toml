@@ -1,0 +1,29 @@
+[build-system]
+requires = ["setuptools>=61.0.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "gammapy-sylc"
+version = "1.0.0"
+authors = [
+    { name = "C. Galelli", email = "claudio.galelli@mi.infn.it" }
+]
+description = "A package for simulating and fitting variability in high-energy light curves"
+readme = "README.md"
+requires-python = ">=3.9"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Intended Audience :: Science/Research",
+    "Topic :: Scientific/Engineering :: Astronomy"
+]
+dependencies = [
+    "numpy",
+    "scipy",
+    "astropy"
+]
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["gammapy_SyLC*"] # Natively excludes 'paper' and local folders from the wheel
