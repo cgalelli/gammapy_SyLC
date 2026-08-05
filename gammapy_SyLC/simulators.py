@@ -232,6 +232,9 @@ def Emmanoulopoulos_lightcurve_simulator(
     """
     npoints = len(obs_times)
 
+    random_state = _random_state(random_state)
+
+
     if base_sim == "MTK":
         lc_norm, taxis = ModifiedTimmerKonig_lightcurve_simulator(
             psd, obs_times, nchunks=nchunks, psd_params=psd_params, random_state=random_state, nsims=nsims
@@ -243,7 +246,6 @@ def Emmanoulopoulos_lightcurve_simulator(
     else:
         raise ValueError("Allowed values for base_sim are 'MTK' or 'TK'")
 
-    random_state = _random_state(random_state)
 
     lc_norm = np.atleast_2d(lc_norm)
 

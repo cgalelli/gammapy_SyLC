@@ -8,3 +8,6 @@ dist/
 
 # Local testing notebooks
 *.ipynb
+
+__pycache__/
+*/__pycache__/
