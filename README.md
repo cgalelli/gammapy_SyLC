@@ -149,7 +149,8 @@ psd_params = {"index": -1.4}
 pdf_params = {"s": 0.5}
 
 # Observation and instrument setup (simplified)
-obs_starts = Time("2020-01-01") + np.arange(100) * 1 * u.day
+t_ref =  Time("2020-01-01")
+obs_starts = np.arange(100) * 1 * u.day
 livetimes = np.full(100, 0.95) * u.day
 irfs = load_irf_dict_from_file("$GAMMAPY_DATA/cta-caldb/Prod5-South-20deg-AverageAz-14MSTs37SSTs.180000s-v0.1.fits.gz")
 energy_axis = MapAxis.from_energy_bounds(energy_min=0.1 * u.TeV, energy_max=100 * u.TeV, nbin=1)
@@ -171,6 +172,7 @@ lc_simu = simulate_flux_points(
     pdf_model=pdf_model,
     pdf_params=pdf_params,
     simulator="EMM",
+    tref=t_ref
 )
 
 # 3. Fit the PSD of the simulated light curve
