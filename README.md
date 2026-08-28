@@ -176,14 +176,22 @@ lc_simu = simulate_flux_points(
 )
 
 # 3. Fit the PSD of the simulated light curve
-# The psd_fit function can take the FluxPoints object directly as input
+sim_flux = lc_simu.flux.data.flatten()
+sim_time_nodes = (lc_simu.geom.axes["time"].edges_min + lc_simu.geom.axes["time"].edges_max)/2
+ls = LombScargle(sim_time_nodes, sim_flux)
+freq, power = ls.autopower(nyquist_factor=1, samples_per_peak=1, normalization="psd")
+
 index_fit, index_err = psd_fit(
-    lightcurve=lc_simu,
+    freq,
+    power,
+    times,
     psd=psd_model,
-    psd_initial={"index": -1.0}, # Initial guess for the fit
-    simulator="MTK", # Use MTK for unevenly sampled data
-    nsims=100, # Use more sims for a real case
-    nexp=10,   # Use more experiments for a real case
+    mean=flux.mean(),
+    std=flux.std(),
+    psd_initial={"index": -1.0},  # Initial guess for the fit
+    simulator="MTK",  # Use MTK for unevenly sampled data
+    nsims=100,  # Use more sims for a real case
+    nexp=10,  # Use more experiments for a real case
 )
 
 print(f"Injected PSD index: {psd_params['index']}")
